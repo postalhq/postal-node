@@ -1,0 +1,50 @@
+{
+  "name": "postal-so",
+  "version": "0.1.0",
+  "description": "SDK e CLI oficiais do Postal para Node.js: envio de e-mails, contatos, eventos e verificação de webhooks.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "postal": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "pretest": "npm run build",
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "postal",
+    "email",
+    "e-mail",
+    "transacional",
+    "sdk",
+    "cli",
+    "webhooks"
+  ],
+  "homepage": "https://postal.so/docs/sdks",
+  "license": "MIT",
+  "sideEffects": false,
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,4 +1,6 @@
+import { canWatchConnection, watchConnection } from './connect-timeout.js'
 import { PostalError, PostalNetworkError, type PostalErrorBody } from './errors.js'
+import { parseRateLimit, type RateLimit } from './rate-limit.js'
 
 export const DEFAULT_BASE_URL = 'https://api.postal.so'
 export const VERSION = '0.1.0'
@@ -12,8 +14,14 @@ export interface ClientOptions {
   baseUrl?: string
   /** Tentativas extras em 429 e 5xx. Padrão: 2. Use 0 para desligar. */
   maxRetries?: number
-  /** Tempo máximo de cada tentativa, em milissegundos. Padrão: 30000. */
+  /** Tempo máximo de cada tentativa, do início ao fim, em milissegundos. Padrão: 30000. */
   timeout?: number
+  /**
+   * Tempo máximo só para abrir a conexão (DNS, TCP e TLS), em milissegundos. Padrão: 5000; 0 desliga.
+   * Só é aplicado com o `fetch` global do Node; com um `fetch` próprio vale apenas `timeout`.
+   * Com a API fora do ar, uma chamada bloqueia cerca de `(maxRetries + 1) × connectTimeout` mais as esperas.
+   */
+  connectTimeout?: number
   /** Espera base entre tentativas, em milissegundos (dobra a cada tentativa). Padrão: 500. */
   retryDelay?: number
   /** Implementação de `fetch`. Padrão: o `fetch` global. */
@@ -54,9 +62,12 @@ export class HttpClient {
   private readonly apiKey: string
   private readonly maxRetries: number
   private readonly timeout: number
+  private readonly connectTimeout: number
   private readonly retryDelay: number
   private readonly fetchImpl: Fetch
+  private readonly watchesConnection: boolean
   private readonly userAgent: string
+  private lastRateLimit: RateLimit | null = null
 
   constructor(options: ClientOptions) {
     const apiKey = options.apiKey ?? process.env['POSTAL_API_KEY']
@@ -73,9 +84,16 @@ export class HttpClient {
     this.baseUrl = (options.baseUrl ?? process.env['POSTAL_API_URL'] ?? DEFAULT_BASE_URL).replace(/\/+$/, '')
     this.maxRetries = Math.max(0, options.maxRetries ?? 2)
     this.timeout = options.timeout ?? 30_000
+    this.connectTimeout = Math.max(0, options.connectTimeout ?? 5_000)
     this.retryDelay = Math.max(0, options.retryDelay ?? 500)
     this.fetchImpl = options.fetch ?? ((input, init) => fetch(input, init))
+    this.watchesConnection = options.fetch === undefined && canWatchConnection()
     this.userAgent = `postal-so-node/${VERSION}${options.userAgent ? ` ${options.userAgent}` : ''}`
+  }
+
+  /** O limite de requisições da última resposta que o trouxe (ver `Postal.rateLimit`). */
+  get rateLimit(): RateLimit | null {
+    return this.lastRateLimit
   }
 
   get<T>(path: string, query?: object, options?: RequestOptions): Promise<T> {
@@ -174,6 +192,8 @@ export class HttpClient {
         throw outcome.error
       }
 
+      this.lastRateLimit = parseRateLimit(outcome.headers) ?? this.lastRateLimit
+
       if (outcome.status >= 200 && outcome.status < 300) {
         return outcome
       }
@@ -208,10 +228,18 @@ export class HttpClient {
   > {
     const controller = new AbortController()
     let timedOut = false
+    let connectTimedOut = false
     const timer = setTimeout(() => {
       timedOut = true
       controller.abort()
     }, this.timeout)
+    const stopWatching =
+      this.watchesConnection && this.connectTimeout > 0
+        ? watchConnection(url, method, this.connectTimeout, () => {
+            connectTimedOut = true
+            controller.abort()
+          })
+        : undefined
     const onAbort = (): void => controller.abort()
 
     external?.addEventListener('abort', onAbort, { once: true })
@@ -235,6 +263,16 @@ export class HttpClient {
         return { canceled: cause }
       }
 
+      if (connectTimedOut) {
+        return {
+          error: new PostalNetworkError(
+            'connect_timeout',
+            `Tempo esgotado ao conectar ao Postal (connectTimeout de ${this.connectTimeout} ms).`,
+            cause,
+          ),
+        }
+      }
+
       return {
         error: timedOut
           ? new PostalNetworkError('timeout', `O Postal não respondeu em ${this.timeout} ms.`, cause)
@@ -242,6 +280,7 @@ export class HttpClient {
       }
     } finally {
       clearTimeout(timer)
+      stopWatching?.()
       external?.removeEventListener('abort', onAbort)
     }
   }
@@ -280,6 +319,7 @@ function toError(status: number, statusText: string, headers: Headers, text: str
     {
       ...(retryAfter !== undefined ? { retryAfter } : {}),
       ...(body !== undefined ? { body } : {}),
+      rateLimit: parseRateLimit(headers),
     },
   )
 }

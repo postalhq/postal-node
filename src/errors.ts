@@ -1,3 +1,5 @@
+import type { RateLimit } from './rate-limit.js'
+
 /**
  * Corpo de erro da API do Postal: `{ statusCode, name, message }`.
  */
@@ -22,18 +24,21 @@ export class PostalError extends Error {
   readonly retryAfter: number | undefined
   /** Campos extras do corpo do erro (por exemplo `errors`). */
   readonly body: PostalErrorBody | undefined
+  /** O limite de requisições dos cabeçalhos da resposta (na 429, com `retryAfter`), se vieram. */
+  readonly rateLimit: RateLimit | null
 
   constructor(
     statusCode: number,
     name: string,
     message: string,
-    extra: { retryAfter?: number; body?: PostalErrorBody } = {},
+    extra: { retryAfter?: number; body?: PostalErrorBody; rateLimit?: RateLimit | null } = {},
   ) {
     super(message)
     this.name = name
     this.statusCode = statusCode
     this.retryAfter = extra.retryAfter
     this.body = extra.body
+    this.rateLimit = extra.rateLimit ?? null
   }
 
   /** Alias de `name`, para quem prefere `error.code`. */
@@ -48,12 +53,13 @@ export class PostalError extends Error {
 
 /**
  * Falha de rede ou tempo esgotado: a API não chegou a responder.
- * `statusCode` é 0 e `name` é `network_error` ou `timeout`.
+ * `statusCode` é 0 e `name` é `network_error`, `timeout` (a API aceitou a conexão mas não respondeu a
+ * tempo) ou `connect_timeout` (não foi possível abrir a conexão a tempo).
  */
 export class PostalNetworkError extends PostalError {
   override readonly cause: unknown
 
-  constructor(name: 'network_error' | 'timeout', message: string, cause?: unknown) {
+  constructor(name: 'network_error' | 'timeout' | 'connect_timeout', message: string, cause?: unknown) {
     super(0, name, message)
     this.cause = cause
   }

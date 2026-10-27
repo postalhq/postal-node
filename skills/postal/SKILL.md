@@ -121,6 +121,7 @@ switch (event.type) {
 
 - Erros chegam como `PostalError` com `statusCode`, `name` (código estável, como `validation_error`) e `message`. Trate pelo `name`.
 - `429 rate_limit_exceeded`: o SDK já repete respeitando `Retry-After`. `daily_quota_exceeded` e `monthly_quota_exceeded` não se resolvem repetindo.
+- Em requisição web síncrona, use `timeout: 10_000` e `maxRetries: 1`; o `connectTimeout` (padrão 5 s) já limita o bloqueio quando a API está inalcançável. `postal.rateLimit` mostra o limite de requisições da última resposta, mesmo com chave só de envio.
 - Não repita sem corrigir em 400, 401, 403, 404 e 422.
 - Códigos: <https://postal.so/docs/erros>.
 

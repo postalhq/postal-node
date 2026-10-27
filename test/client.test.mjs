@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
-import { afterEach, describe, it } from 'node:test'
+import { afterEach, describe, it, mock } from 'node:test'
 import { readFileSync } from 'node:fs'
 import { Postal, PostalError, PostalNetworkError, VERSION, isPostalError } from '../dist/index.js'
-import { apiError, fakeServer } from './helpers.mjs'
+import { apiError, fakeServer, hangingServer } from './helpers.mjs'
 
 let server
 
@@ -157,6 +157,197 @@ describe('Postal', () => {
     const postal = await clientWith(() => ({ status: 502, body: '<html>Bad gateway</html>' }), { maxRetries: 0 })
 
     await assert.rejects(postal.domains.list(), (error) => error.statusCode === 502 && error.name === 'internal_server_error')
+  })
+
+  describe('prazo de conexão (connectTimeout)', () => {
+    let hanging
+
+    afterEach(async () => {
+      await hanging?.close()
+      hanging = undefined
+    })
+
+    it('uma conexão que não abre estoura em connect_timeout, antes do timeout total', async (t) => {
+      hanging = await hangingServer()
+
+      if (hanging === null) {
+        return t.skip('o ambiente não deixa a conexão pendente')
+      }
+
+      const postal = new Postal('ps_x', { baseUrl: hanging.baseUrl, connectTimeout: 150, timeout: 20_000, maxRetries: 0 })
+      const started = Date.now()
+
+      await assert.rejects(
+        postal.domains.list(),
+        (error) =>
+          error instanceof PostalNetworkError &&
+          error.name === 'connect_timeout' &&
+          error.statusCode === 0 &&
+          /connectTimeout de 150 ms/.test(error.message),
+      )
+      assert.ok(Date.now() - started < 5_000)
+    })
+
+    it('a falha de conexão é repetida como erro de rede (3 tentativas) e depois lançada', async (t) => {
+      hanging = await hangingServer()
+
+      if (hanging === null) {
+        return t.skip('o ambiente não deixa a conexão pendente')
+      }
+
+      const postal = new Postal('ps_x', { baseUrl: hanging.baseUrl, connectTimeout: 150, timeout: 20_000, retryDelay: 1 })
+      const started = Date.now()
+
+      await assert.rejects(postal.domains.list(), (error) => error.name === 'connect_timeout')
+
+      const elapsed = Date.now() - started
+
+      assert.ok(elapsed >= 3 * 150 - 30, `3 tentativas de ~150 ms (levou ${elapsed} ms)`)
+      assert.ok(elapsed < 5_000)
+    })
+
+    it('POST sem chave de idempotência não é repetido após connect_timeout', async (t) => {
+      hanging = await hangingServer()
+
+      if (hanging === null) {
+        return t.skip('o ambiente não deixa a conexão pendente')
+      }
+
+      const postal = new Postal('ps_x', { baseUrl: hanging.baseUrl, connectTimeout: 150, retryDelay: 1 })
+      const started = Date.now()
+
+      await assert.rejects(postal.contacts.create({ email: 'fulano@exemplo.com' }), (error) => error.name === 'connect_timeout')
+      assert.ok(Date.now() - started < 450)
+    })
+
+    it('connectTimeout: 0 desliga o prazo e vale só o timeout total', async (t) => {
+      hanging = await hangingServer()
+
+      if (hanging === null) {
+        return t.skip('o ambiente não deixa a conexão pendente')
+      }
+
+      const postal = new Postal('ps_x', { baseUrl: hanging.baseUrl, connectTimeout: 0, timeout: 300, maxRetries: 0 })
+
+      await assert.rejects(postal.domains.list(), (error) => error.name === 'timeout')
+    })
+
+    it('o padrão é 5 s', async (t) => {
+      hanging = await hangingServer()
+
+      if (hanging === null) {
+        return t.skip('o ambiente não deixa a conexão pendente')
+      }
+
+      mock.timers.enable({ apis: ['setTimeout'] })
+
+      try {
+        const postal = new Postal('ps_x', { baseUrl: hanging.baseUrl, maxRetries: 0 })
+        let outcome
+
+        const request = postal.domains.list().then(
+          () => (outcome = 'ok'),
+          (error) => (outcome = error.name),
+        )
+
+        mock.timers.tick(4_999)
+        await new Promise((resolve) => setImmediate(resolve))
+        assert.equal(outcome, undefined, 'ainda não estourou aos 4999 ms')
+
+        mock.timers.tick(1)
+        await request
+        assert.equal(outcome, 'connect_timeout')
+      } finally {
+        mock.timers.reset()
+      }
+    })
+
+    it('uma conexão que abre não é cortada pelo prazo, mesmo com resposta lenta', async () => {
+      const postal = await clientWith(() => new Promise((resolve) => setTimeout(() => resolve({ body: { ok: true } }), 250)), {
+        connectTimeout: 100,
+        maxRetries: 0,
+      })
+
+      assert.deepEqual(await postal.domains.list(), { ok: true })
+    })
+
+    it('com fetch próprio o prazo de conexão não é aplicado', async () => {
+      const postal = new Postal('ps_x', {
+        connectTimeout: 1,
+        fetch: async () => {
+          await new Promise((resolve) => setTimeout(resolve, 50))
+
+          return new Response('{}', { status: 200 })
+        },
+      })
+
+      assert.deepEqual(await postal.domains.list(), {})
+    })
+  })
+
+  describe('rateLimit', () => {
+    it('é null antes da primeira requisição', async () => {
+      const postal = await clientWith(() => ({ body: {} }))
+
+      assert.equal(postal.rateLimit, null)
+    })
+
+    it('lê os cabeçalhos da última resposta, sem requisição extra', async () => {
+      const postal = await clientWith((_, count) => ({
+        body: { id: 'em_1' },
+        headers: { 'x-ratelimit-limit': '10', 'x-ratelimit-remaining': String(10 - count) },
+      }))
+
+      await postal.emails.send({ from: 'a@b.com', to: 'c@d.com', subject: 's', text: 't' })
+      assert.deepEqual(postal.rateLimit, { limit: 10, remaining: 9, retryAfter: null, resetAt: null })
+
+      await postal.emails.send({ from: 'a@b.com', to: 'c@d.com', subject: 's', text: 't' })
+      assert.equal(postal.rateLimit?.remaining, 8)
+      assert.equal(server.requests.length, 2)
+      assert.ok(server.requests.every((request) => request.url === '/emails'))
+    })
+
+    it('continua null quando a resposta não traz os cabeçalhos', async () => {
+      const postal = await clientWith(() => ({ body: {} }))
+
+      await postal.domains.list()
+      assert.equal(postal.rateLimit, null)
+    })
+
+    it('uma resposta sem os cabeçalhos mantém o último valor conhecido', async () => {
+      const postal = await clientWith((_, count) => ({
+        body: {},
+        headers: count === 1 ? { 'x-ratelimit-limit': '5', 'x-ratelimit-remaining': '4' } : {},
+      }))
+
+      await postal.domains.list()
+      await postal.domains.list()
+      assert.equal(postal.rateLimit?.remaining, 4)
+    })
+
+    it('na 429, o erro e o cliente trazem Retry-After e X-RateLimit-Reset', async () => {
+      const headers = { 'x-ratelimit-limit': '2', 'x-ratelimit-remaining': '0', 'retry-after': '3', 'x-ratelimit-reset': '1790000000' }
+      const postal = await clientWith(() => apiError(429, 'rate_limit_exceeded', 'Too many', headers), { maxRetries: 0 })
+      const expected = { limit: 2, remaining: 0, retryAfter: 3, resetAt: 1790000000 }
+
+      await assert.rejects(postal.domains.list(), (error) => {
+        assert.deepEqual(error.rateLimit, expected)
+        assert.equal(error.retryAfter, 3)
+
+        return true
+      })
+      assert.deepEqual(postal.rateLimit, expected)
+    })
+
+    it('ignora valores que não são números inteiros', async () => {
+      const postal = await clientWith(() => ({
+        body: {},
+        headers: { 'x-ratelimit-limit': 'abc', 'x-ratelimit-remaining': '7', 'retry-after': 'Wed, 21 Oct 2026 07:28:00 GMT' },
+      }))
+
+      await postal.domains.list()
+      assert.deepEqual(postal.rateLimit, { limit: null, remaining: 7, retryAfter: null, resetAt: null })
+    })
   })
 
   describe('contatos', () => {

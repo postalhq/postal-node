@@ -49,6 +49,7 @@ await postal.emails.send(
 - `to` é uma string ou uma lista de até 50. Mande sempre `text` junto com `html`.
 - Para e-mails que o produto dispara várias vezes (recibo, boas-vindas), passe `idempotencyKey` com o *motivo* do envio (`order-10482-receipt`), nunca um valor novo a cada tentativa.
 - Com template publicado: `template: { id: 'boas-vindas', variables: { NOME: 'Fulano' } }` no lugar de `html`/`text`.
+- E-mail com código de verificação digitado numa página: acrescente `headers: { 'OTP-Token': otpTokenHeader('123456', 'https://seu-app.com') }` (`import { otpTokenHeader } from 'postal-so'`) para o cliente de e-mail preencher o código sozinho; a origem é a do site que pede o código, em minúsculas e sem caminho.
 - Envie em segundo plano (fila/job) quando o e-mail não precisa bloquear a resposta ao usuário.
 
 ## 4. Eventos de cadastro e pagamento

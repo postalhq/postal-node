@@ -118,6 +118,24 @@ const page = await postal.emails.list({ status: ['bounced', 'complained'], limit
 
 `emails.list`, `get` e os demais métodos de leitura exigem uma chave de acesso total.
 
+### Códigos de uso único (`OTP-Token`)
+
+O cabeçalho `OTP-Token` ([draft-goto-otp-token](https://datatracker.ietf.org/doc/draft-goto-otp-token/)) entrega o código de um e-mail de verificação de forma legível por máquina e presa a uma origem, para que o cliente de e-mail o ofereça à página que o pediu. O SDK envia `headers` como estão (sem codificar as aspas, em `send`, `batch`, agendados e com template); `otpTokenHeader(código, origem)` monta o valor com o escape certo:
+
+```ts
+import { Postal, otpTokenHeader } from 'postal-so'
+
+await postal.emails.send({
+  from: 'voce@seudominio.com.br',
+  to: 'fulano@exemplo.com',
+  subject: 'Seu código de verificação',
+  html: '<p>Seu código: <b>123456</b></p>',
+  headers: { 'OTP-Token': otpTokenHeader('123456', 'https://exemplo.com') }, // "123456"; origin="https://exemplo.com"
+})
+```
+
+O código precisa ser ASCII imprimível; a origem, a canônica de quem pede o código (`https://host[:porta]` em minúsculas, sem caminho, sem barra no fim e sem porta padrão; `http` só em `localhost`). Se não servir, `otpTokenHeader` lança `PostalError` (`name: 'validation_error'`, `statusCode: 0`) antes de a API recusar o envio com 422. Passe o cabeçalho uma vez só.
+
 ### Idempotência
 
 Para repetir um envio sem mandar o e-mail duas vezes, passe uma chave que identifique o *motivo* do envio (não a tentativa):

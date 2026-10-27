@@ -61,6 +61,10 @@ interface EmailCommon {
   cc?: string | string[]
   bcc?: string | string[]
   reply_to?: string | string[]
+  /**
+   * Cabeçalhos extras, enviados como estão (o SDK não codifica nem muda os valores). Para o `OTP-Token`, use
+   * `otpTokenHeader(código, origem)`.
+   */
   headers?: Record<string, string>
   tags?: EmailTag[]
 }

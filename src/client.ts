@@ -59,7 +59,7 @@ export class Postal {
     return this.http.rateLimit
   }
 
-  /** Plano, cotas e limite de requisições da conta (`GET /usage`). Exige chave de acesso total. */
+  /** Plano, cotas e limite de requisições da conta (`GET /usage`). Funciona com chave de acesso total ou só de envio (a chave só de envio não vê os créditos). */
   usage(options?: RequestOptions): Promise<Usage> {
     return this.http.get('/usage', undefined, options)
   }

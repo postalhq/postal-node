@@ -24,7 +24,7 @@ composer require postal-so/postal-php   # PHP 8.2+
 
 - Crie em **Chaves de API**, no painel. Ela começa com `ps_` e aparece uma única vez.
 - Guarde em `POSTAL_API_KEY` (`.env`, cofre de segredos do deploy). **Nunca** no código, no repositório, no navegador ou em app mobile: chame o Postal só pelo servidor.
-- Para um sistema que só envia e-mails e eventos, use uma chave **só de envio** (`sending_access`), que pode ser restrita a um domínio. Ela cobre `POST /emails`, `POST /emails/batch` e `POST /events`; o resto da API exige acesso total.
+- Para um sistema que só envia e-mails e eventos, use uma chave **só de envio** (`sending_access`), que pode ser restrita a um domínio. Ela cobre `POST /emails`, `POST /emails/batch` e `POST /events`, e lê `GET /emails/{id}` (só o que ela enviou) e `GET /usage`; o resto da API exige acesso total.
 - Acrescente `POSTAL_API_KEY=` ao `.env.example`, sem valor.
 
 ## 3. Enviar um e-mail

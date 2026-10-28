@@ -116,7 +116,7 @@ const email = await postal.emails.get(id) // status em email.last_event e histó
 const page = await postal.emails.list({ status: ['bounced', 'complained'], limit: 50 })
 ```
 
-`emails.list`, `get` e os demais métodos de leitura exigem uma chave de acesso total.
+`emails.list` e os demais métodos de leitura exigem uma chave de acesso total. Duas leituras também funcionam com uma chave só de envio: `emails.get` (só os e-mails que ela enviou) e `usage()` (sem os créditos de verificação).
 
 ### Códigos de uso único (`OTP-Token`)
 

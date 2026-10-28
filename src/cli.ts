@@ -4,7 +4,7 @@ import { run, type CliContext } from './cli/index.js'
 import { VERSION } from './http.js'
 
 /**
- * Lê a chave sem mostrá-la na tela; fora de um terminal, lê uma linha da entrada padrão.
+ * Reads the key without showing it on screen; outside a terminal, reads a line from standard input.
  */
 function readSecret(prompt: string): Promise<string> {
   const { stdin, stderr } = process

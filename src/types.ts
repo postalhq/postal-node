@@ -1,14 +1,14 @@
 /**
- * Tipos da API do Postal. Os nomes dos campos são os mesmos da API (snake_case),
- * então a documentação em https://postal.so/docs vale diretamente para o SDK.
+ * Postal API types. Field names are the same as the API's (snake_case),
+ * so the documentation at https://postal.so/en/docs applies directly to the SDK.
  */
 
 export interface ListParams {
-  /** Itens por página, de 1 a 100. Padrão: 20. */
+  /** Items per page, from 1 to 100. Default: 20. */
   limit?: number
-  /** ID do último item recebido: devolve os itens mais antigos que ele. */
+  /** ID of the last item received: returns the items older than it. */
   after?: string
-  /** ID do primeiro item recebido: devolve os itens mais recentes que ele. */
+  /** ID of the first item received: returns the items newer than it. */
   before?: string
 }
 
@@ -31,27 +31,27 @@ export interface ObjectRef {
 
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
 
-/* ---------------------------------------------------------------- E-mails */
+/* ----------------------------------------------------------------- Emails */
 
 export interface EmailTag {
-  /** Letras ASCII, números, `_` ou `-`. Não pode começar com `postal_`. */
+  /** ASCII letters, numbers, `_` or `-`. Cannot start with `postal_`. */
   name: string
   value?: string
 }
 
 export interface EmailAttachment {
-  /** Conteúdo do arquivo em Base64. Obrigatório sem `path`. */
+  /** File content in Base64. Required without `path`. */
   content?: string
-  /** URL pública de onde o Postal baixa o arquivo. Obrigatório sem `content`. */
+  /** Public URL Postal downloads the file from. Required without `content`. */
   path?: string
   filename?: string
   content_type?: string
-  /** Para imagens embutidas: `<img src="cid:logo">` e `content_id: "logo"`. */
+  /** For inline images: `<img src="cid:logo">` and `content_id: "logo"`. */
   content_id?: string
 }
 
 export interface EmailTemplateRef {
-  /** ID ou alias do template publicado. */
+  /** ID or alias of the published template. */
   id: string
   variables?: Record<string, string | number | boolean>
 }
@@ -62,27 +62,27 @@ interface EmailCommon {
   bcc?: string | string[]
   reply_to?: string | string[]
   /**
-   * Cabeçalhos extras, enviados como estão (o SDK não codifica nem muda os valores). Para o `OTP-Token`, use
-   * `otpTokenHeader(código, origem)`.
+   * Extra headers, sent as they are (the SDK neither encodes nor changes the values). For `OTP-Token`, use
+   * `otpTokenHeader(code, origin)`.
    */
   headers?: Record<string, string>
   tags?: EmailTag[]
 }
 
-/** E-mail com conteúdo próprio. Precisa de `html` ou `text`. */
+/** Email with its own content. Needs `html` or `text`. */
 export interface ContentEmailParams extends EmailCommon {
-  /** `email@dominio.com` ou `Nome <email@dominio.com>`. O domínio precisa estar verificado. */
+  /** `email@domain.com` or `Name <email@domain.com>`. The domain must be verified. */
   from: string
   subject: string
   html?: string
   text?: string
   template?: undefined
   attachments?: EmailAttachment[]
-  /** Data de envio (ISO 8601 ou `Date`), no futuro e a no máximo 30 dias. */
+  /** Send date (ISO 8601 or `Date`), in the future and at most 30 days ahead. */
   scheduled_at?: string | Date
 }
 
-/** E-mail com um template publicado. `from`, `subject` e `reply_to` vêm do template se não forem enviados. */
+/** Email with a published template. `from`, `subject` and `reply_to` come from the template if not sent. */
 export interface TemplateEmailParams extends EmailCommon {
   from?: string
   subject?: string
@@ -95,7 +95,7 @@ export interface TemplateEmailParams extends EmailCommon {
 
 export type SendEmailParams = ContentEmailParams | TemplateEmailParams
 
-/** Item de `emails.batch`: como `SendEmailParams`, sem anexos nem agendamento. */
+/** Item of `emails.batch`: like `SendEmailParams`, without attachments or scheduling. */
 export type BatchEmailItem =
   | Omit<ContentEmailParams, 'attachments' | 'scheduled_at'>
   | Omit<TemplateEmailParams, 'attachments' | 'scheduled_at'>
@@ -144,7 +144,7 @@ export interface Email {
   last_event: EmailStatus
   scheduled_at: string | null
   tags?: EmailTag[]
-  /** Só em `emails.get`. */
+  /** Only in `emails.get`. */
   events?: EmailEvent[]
   domain_id?: string
   api_key_id?: string | null
@@ -155,7 +155,7 @@ export interface Email {
 
 export interface ListEmailsParams extends ListParams {
   search?: string
-  /** Um ou mais status. */
+  /** One or more statuses. */
   status?: EmailStatus | EmailStatus[]
   domain_id?: string
   api_key_id?: string
@@ -163,7 +163,7 @@ export interface ListEmailsParams extends ListParams {
   end_date?: string
 }
 
-/* --------------------------------------------------------------- Contatos */
+/* --------------------------------------------------------------- Contacts */
 
 export interface ContactTopicChoice {
   id: string
@@ -175,7 +175,7 @@ export interface Contact {
   id: string
   email: string
   external_id: string | null
-  /** Alias de `external_id`. */
+  /** Alias of `external_id`. */
   user_id: string | null
   first_name: string | null
   last_name: string | null
@@ -192,17 +192,17 @@ export interface Contact {
 
 export interface CreateContactParams {
   email: string
-  /** ID da pessoa no seu sistema. Único por conta. */
+  /** The person's ID in your system. Unique per account. */
   external_id?: string | null
   first_name?: string | null
   last_name?: string | null
   unsubscribed?: boolean
-  /** Valores das propriedades de contato; cada chave precisa existir antes. */
+  /** Values of the contact properties; each key must exist beforehand. */
   properties?: Record<string, Json>
-  /** IDs de segmentos estáticos. */
+  /** IDs of static segments. */
   segments?: string[]
   topics?: ContactTopicChoice[]
-  /** IDs ou nomes de tags (nomes novos são criados). */
+  /** IDs or names of tags (new names are created). */
   tags?: string[]
 }
 
@@ -212,25 +212,25 @@ export interface UpdateContactParams {
   first_name?: string | null
   last_name?: string | null
   unsubscribed?: boolean
-  /** Só as chaves enviadas mudam; `null` ou `""` apaga o valor. */
+  /** Only the keys sent change; `null` or `""` deletes the value. */
   properties?: Record<string, Json>
-  /** Substitui as tags do contato. */
+  /** Replaces the contact's tags. */
   tags?: string[]
 }
 
 export interface UpsertContactParams {
-  /** Procura o contato primeiro por `id`, depois por `external_id`, depois por `email`. */
+  /** Looks the contact up first by `id`, then by `external_id`, then by `email`. */
   id?: string
   external_id?: string
-  /** Obrigatório para criar um contato novo. */
+  /** Required to create a new contact. */
   email?: string
   first_name?: string | null
   last_name?: string | null
   unsubscribed?: boolean
-  /** Para reinscrever quem já se descadastrou: quando e como a pessoa consentiu. */
+  /** To resubscribe someone who already unsubscribed: when and how the person consented. */
   resubscribe?: { consented_at: string; proof: string }
   properties?: Record<string, Json>
-  /** Tags e segmentos são só adicionados, nunca removidos. */
+  /** Tags and segments are only added, never removed. */
   tags?: string[]
   segments?: string[]
   topics?: ContactTopicChoice[]
@@ -271,14 +271,14 @@ export interface ListContactsParams extends ListParams {
   unsubscribed?: boolean
 }
 
-/* ----------------------------------------------------------------- Eventos */
+/* ------------------------------------------------------------------ Events */
 
 export interface SendEventParams {
-  /** Letras, números, `.`, `_`, `:` e `-`; até 100 caracteres. Ex.: `signup`, `order.paid`. */
+  /** Letters, numbers, `.`, `_`, `:` and `-`; up to 100 characters. E.g.: `signup`, `order.paid`. */
   name: string
   /**
-   * Quem fez: e-mail, ID do contato, `external_id:<id>` ou um objeto.
-   * Um e-mail desconhecido cria o contato.
+   * Who did it: email, contact ID, `external_id:<id>` or an object.
+   * An unknown email creates the contact.
    */
   contact?:
     | string
@@ -289,13 +289,13 @@ export interface SendEventParams {
         first_name?: string
         last_name?: string
       }
-  /** ID da pessoa no seu sistema (alternativa a `contact`). */
+  /** The person's ID in your system (alternative to `contact`). */
   external_id?: string
-  /** Dados do evento (até 16 KB), disponíveis nas automações e nos e-mails. */
+  /** Event data (up to 16 KB), available in automations and emails. */
   properties?: Record<string, Json>
-  /** Propriedades do contato a atualizar antes de iniciar as automações. */
+  /** Contact properties to update before starting the automations. */
   contact_properties?: Record<string, Json>
-  /** ISO 8601 ou `Date`. Padrão: agora. */
+  /** ISO 8601 or `Date`. Default: now. */
   occurred_at?: string | Date
 }
 
@@ -318,7 +318,7 @@ export interface PostalEvent {
 
 export interface ListEventsParams extends ListParams {
   name?: string | string[]
-  /** ID ou e-mail do contato. */
+  /** ID or email of the contact. */
   contact?: string
 }
 
@@ -328,7 +328,7 @@ export interface EventName {
   last_seen_at: string
 }
 
-/* --------------------------------------------------- Segmentos e tópicos */
+/* --------------------------------------------------- Segments and topics */
 
 export interface Segment {
   object: 'segment'
@@ -367,7 +367,7 @@ export interface Topic {
 
 export interface CreateTopicParams {
   name: string
-  /** Não muda depois de criado. */
+  /** Does not change after creation. */
   default_subscription: 'opt_in' | 'opt_out'
   description?: string | null
   visibility?: 'public' | 'private'
@@ -379,7 +379,7 @@ export interface UpdateTopicParams {
   visibility?: 'public' | 'private'
 }
 
-/* ---------------------------------------------------------------- Domínios */
+/* ----------------------------------------------------------------- Domains */
 
 export type DomainStatus =
   | 'not_started'
@@ -414,7 +414,7 @@ export interface Domain {
   tracking_subdomain: string | null
   tls: 'opportunistic' | 'enforced'
   capabilities: { sending: 'enabled' | 'disabled'; receiving: 'enabled' | 'disabled' }
-  /** Só em `domains.get` e `domains.create`. */
+  /** Only in `domains.get` and `domains.create`. */
   records?: DomainRecord[]
 }
 
@@ -444,14 +444,14 @@ export interface Webhook {
   events: string[]
   status: 'enabled' | 'disabled'
   created_at: string
-  /** Só em `webhooks.get`, `webhooks.create` e `webhooks.rotateSecret`. */
+  /** Only in `webhooks.get`, `webhooks.create` and `webhooks.rotateSecret`. */
   signing_secret?: string
 }
 
 export interface CreateWebhookParams {
-  /** URL HTTPS pública. */
+  /** Public HTTPS URL. */
   endpoint: string
-  /** Tipos de evento, como `email.delivered`. */
+  /** Event types, such as `email.delivered`. */
   events: string[]
 }
 
@@ -461,14 +461,14 @@ export interface UpdateWebhookParams {
   status?: 'enabled' | 'disabled'
 }
 
-/** Evento entregue a um endpoint de webhook, já verificado por `verifyWebhook`. */
+/** Event delivered to a webhook endpoint, already verified by `verifyWebhook`. */
 export interface WebhookEvent<T = Record<string, Json>> {
   type: string
   created_at: string
   data: T
 }
 
-/* ------------------------------------------------------------------- Uso */
+/* ----------------------------------------------------------------- Usage */
 
 export interface Usage {
   object: 'usage'

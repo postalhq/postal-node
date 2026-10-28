@@ -31,7 +31,7 @@ export class Segments extends Resource {
     return this.http.patch(`/segments/${segment(id)}`, params, { options })
   }
 
-  /** Apaga só a lista: os contatos continuam na audiência. */
+  /** Deletes only the list: the contacts stay in the audience. */
   delete(id: string, options?: RequestOptions): Promise<Deleted> {
     return this.http.delete(`/segments/${segment(id)}`, options)
   }

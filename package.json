@@ -1,7 +1,7 @@
 {
   "name": "postal-so",
   "version": "0.1.0",
-  "description": "SDK e CLI oficiais do Postal para Node.js: envio de e-mails, contatos, eventos e verificação de webhooks.",
+  "description": "Official Postal SDK and CLI for Node.js: send emails, manage contacts, track events and verify webhooks.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -19,6 +19,7 @@
     "dist",
     "skills",
     "README.md",
+    "README.pt-BR.md",
     "LICENSE"
   ],
   "engines": {
@@ -35,6 +36,7 @@
     "postal",
     "email",
     "e-mail",
+    "transactional",
     "transacional",
     "sdk",
     "cli",

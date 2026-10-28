@@ -1,13 +1,13 @@
 import type { Fetch } from '../http.js'
 
 /**
- * Tudo que o CLI precisa do mundo exterior; nos testes, cada item é trocado por um falso.
+ * Everything the CLI needs from the outside world; in tests, each item is swapped for a fake.
  */
 export interface CliContext {
   env: Record<string, string | undefined>
   stdout: (text: string) => void
   stderr: (text: string) => void
-  /** Lê um segredo sem mostrá-lo na tela (ou da entrada padrão, se não for um terminal). */
+  /** Reads a secret without showing it on screen (or from standard input, if it is not a terminal). */
   readSecret: (prompt: string) => Promise<string>
   fetch?: Fetch
   retryDelay?: number

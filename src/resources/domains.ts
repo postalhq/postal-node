@@ -11,17 +11,17 @@ export class Domains extends Resource {
     return paginate((page) => this.list(page), params)
   }
 
-  /** O domínio com os registros DNS e o status de cada um. */
+  /** The domain with its DNS records and the status of each. */
   get(id: string, options?: RequestOptions): Promise<Domain> {
     return this.http.get(`/domains/${segment(id)}`, undefined, options)
   }
 
-  /** Cadastra o domínio e devolve os registros DNS a criar. Depois, chame `verify`. */
+  /** Registers the domain and returns the DNS records to create. Then call `verify`. */
   create(params: CreateDomainParams, options?: RequestOptions): Promise<Domain> {
     return this.http.post('/domains', params, { options })
   }
 
-  /** Pede ao Postal que confira o DNS agora (`POST /domains/{id}/verify`). Acompanhe o status com `get`. */
+  /** Asks Postal to check the DNS now (`POST /domains/{id}/verify`). Follow the status with `get`. */
   verify(id: string, options?: RequestOptions): Promise<ObjectRef> {
     return this.http.post(`/domains/${segment(id)}/verify`, undefined, { options })
   }

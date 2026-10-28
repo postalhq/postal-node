@@ -18,13 +18,13 @@ async function clientWith(handler, options = {}) {
 }
 
 describe('Postal', () => {
-  it('a versão do código é a do package.json', () => {
+  it('the code version matches package.json', () => {
     const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
     assert.equal(VERSION, manifest.version)
   })
 
-  it('falha sem chave de API', () => {
+  it('fails without an API key', () => {
     const saved = process.env.POSTAL_API_KEY
 
     delete process.env.POSTAL_API_KEY
@@ -38,7 +38,7 @@ describe('Postal', () => {
     }
   })
 
-  it('usa POSTAL_API_KEY quando nenhuma chave é passada', async () => {
+  it('uses POSTAL_API_KEY when no key is passed', async () => {
     server = await fakeServer(() => ({ body: { id: 'e1' } }))
     process.env.POSTAL_API_KEY = 'ps_from_env'
 
@@ -51,7 +51,7 @@ describe('Postal', () => {
     assert.equal(server.requests[0].headers.authorization, 'Bearer ps_from_env')
   })
 
-  it('envia e-mail com Bearer, JSON e chave de idempotência', async () => {
+  it('sends an email with Bearer, JSON and an idempotency key', async () => {
     const postal = await clientWith(() => ({ body: { id: 'em_1' } }))
     const result = await postal.emails.send(
       { from: 'Minha empresa <voce@seudominio.com.br>', to: ['fulano@exemplo.com'], subject: 'Olá', html: '<p>Oi</p>' },
@@ -68,7 +68,7 @@ describe('Postal', () => {
     assert.equal(request.body.subject, 'Olá')
   })
 
-  it('gera uma chave de idempotência e a reaproveita nas retentativas', async () => {
+  it('generates an idempotency key and reuses it across retries', async () => {
     const postal = await clientWith((_, count) => (count === 1 ? apiError(500, 'internal_server_error', 'boom') : { body: { id: 'em_2' } }))
     const result = await postal.emails.send({ from: 'a@b.com', to: 'c@d.com', subject: 's', text: 't' })
     const keys = server.requests.map((r) => r.headers['idempotency-key'])
@@ -78,7 +78,7 @@ describe('Postal', () => {
     assert.ok(keys[0] && keys[0] === keys[1])
   })
 
-  it('converte Date em ISO 8601 em scheduled_at', async () => {
+  it('converts a Date to ISO 8601 in scheduled_at', async () => {
     const postal = await clientWith(() => ({ body: { id: 'em_3' } }))
 
     await postal.emails.send({ from: 'a@b.com', to: 'c@d.com', subject: 's', text: 't', scheduled_at: new Date('2026-10-26T12:00:00Z') })
@@ -86,7 +86,7 @@ describe('Postal', () => {
     assert.equal(server.requests[0].body.scheduled_at, '2026-10-26T12:00:00.000Z')
   })
 
-  it('lança PostalError com name, message e statusCode do Postal', async () => {
+  it('throws PostalError with Postal\'s name, message and statusCode', async () => {
     const postal = await clientWith(() => apiError(422, 'validation_error', 'Missing `subject` field.'))
 
     await assert.rejects(
@@ -102,24 +102,24 @@ describe('Postal', () => {
         return true
       },
     )
-    assert.equal(server.requests.length, 1, 'não repete 422')
+    assert.equal(server.requests.length, 1, 'does not retry a 422')
   })
 
-  it('repete em 429 respeitando Retry-After e para ao esgotar as tentativas', async () => {
+  it('retries on 429 respecting Retry-After and stops when attempts run out', async () => {
     const postal = await clientWith(() => apiError(429, 'rate_limit_exceeded', 'Too many', { 'retry-after': '0' }), { maxRetries: 2 })
 
     await assert.rejects(postal.contacts.get('fulano@exemplo.com'), (error) => error.name === 'rate_limit_exceeded' && error.retryAfter === 0)
     assert.equal(server.requests.length, 3)
   })
 
-  it('não repete 429 de cota esgotada', async () => {
+  it('does not retry a 429 for an exhausted quota', async () => {
     const postal = await clientWith(() => apiError(429, 'daily_quota_exceeded', 'Quota'))
 
     await assert.rejects(postal.emails.send({ from: 'a@b.com', to: 'c@d.com', subject: 's', text: 't' }), (error) => error.name === 'daily_quota_exceeded')
     assert.equal(server.requests.length, 1)
   })
 
-  it('repete 5xx em GET e devolve o sucesso', async () => {
+  it('retries a 5xx on GET and returns the success', async () => {
     const postal = await clientWith((_, count) => (count < 3 ? apiError(503, 'ai_unavailable', 'busy') : { body: { object: 'list', has_more: false, data: [] } }))
     const list = await postal.domains.list()
 
@@ -127,39 +127,39 @@ describe('Postal', () => {
     assert.equal(server.requests.length, 3)
   })
 
-  it('não repete 5xx em POST sem chave de idempotência (contacts.create)', async () => {
+  it('does not retry a 5xx on a POST without an idempotency key (contacts.create)', async () => {
     const postal = await clientWith(() => apiError(500, 'internal_server_error', 'boom'))
 
     await assert.rejects(postal.contacts.create({ email: 'fulano@exemplo.com' }), (error) => error.statusCode === 500)
     assert.equal(server.requests.length, 1)
   })
 
-  it('maxRetries: 0 desliga as retentativas', async () => {
+  it('maxRetries: 0 turns retries off', async () => {
     const postal = await clientWith(() => apiError(429, 'rate_limit_exceeded', 'x'), { maxRetries: 0 })
 
     await assert.rejects(postal.domains.list())
     assert.equal(server.requests.length, 1)
   })
 
-  it('erro de rede vira PostalNetworkError', async () => {
+  it('a network error becomes PostalNetworkError', async () => {
     const postal = new Postal('ps_x', { baseUrl: 'http://127.0.0.1:1', maxRetries: 0 })
 
     await assert.rejects(postal.domains.list(), (error) => error instanceof PostalNetworkError && error.name === 'network_error' && error.statusCode === 0)
   })
 
-  it('estoura o tempo limite', async () => {
+  it('times out', async () => {
     const postal = await clientWith(() => new Promise(() => {}), { timeout: 50, maxRetries: 0 })
 
     await assert.rejects(postal.domains.list(), (error) => error.name === 'timeout')
   })
 
-  it('resposta que não é JSON do Postal vira erro genérico', async () => {
+  it('a non-JSON response from Postal becomes a generic error', async () => {
     const postal = await clientWith(() => ({ status: 502, body: '<html>Bad gateway</html>' }), { maxRetries: 0 })
 
     await assert.rejects(postal.domains.list(), (error) => error.statusCode === 502 && error.name === 'internal_server_error')
   })
 
-  describe('prazo de conexão (connectTimeout)', () => {
+  describe('connection deadline (connectTimeout)', () => {
     let hanging
 
     afterEach(async () => {
@@ -167,11 +167,11 @@ describe('Postal', () => {
       hanging = undefined
     })
 
-    it('uma conexão que não abre estoura em connect_timeout, antes do timeout total', async (t) => {
+    it('a connection that does not open fails with connect_timeout, before the total timeout', async (t) => {
       hanging = await hangingServer()
 
       if (hanging === null) {
-        return t.skip('o ambiente não deixa a conexão pendente')
+        return t.skip('the environment does not leave the connection hanging')
       }
 
       const postal = new Postal('ps_x', { baseUrl: hanging.baseUrl, connectTimeout: 150, timeout: 20_000, maxRetries: 0 })
@@ -183,16 +183,16 @@ describe('Postal', () => {
           error instanceof PostalNetworkError &&
           error.name === 'connect_timeout' &&
           error.statusCode === 0 &&
-          /connectTimeout de 150 ms/.test(error.message),
+          /connectTimeout of 150 ms/.test(error.message),
       )
       assert.ok(Date.now() - started < 5_000)
     })
 
-    it('a falha de conexão é repetida como erro de rede (3 tentativas) e depois lançada', async (t) => {
+    it('the connection failure is retried as a network error (3 attempts) and then thrown', async (t) => {
       hanging = await hangingServer()
 
       if (hanging === null) {
-        return t.skip('o ambiente não deixa a conexão pendente')
+        return t.skip('the environment does not leave the connection hanging')
       }
 
       const postal = new Postal('ps_x', { baseUrl: hanging.baseUrl, connectTimeout: 150, timeout: 20_000, retryDelay: 1 })
@@ -206,11 +206,11 @@ describe('Postal', () => {
       assert.ok(elapsed < 5_000)
     })
 
-    it('POST sem chave de idempotência não é repetido após connect_timeout', async (t) => {
+    it('a POST without an idempotency key is not retried after connect_timeout', async (t) => {
       hanging = await hangingServer()
 
       if (hanging === null) {
-        return t.skip('o ambiente não deixa a conexão pendente')
+        return t.skip('the environment does not leave the connection hanging')
       }
 
       const postal = new Postal('ps_x', { baseUrl: hanging.baseUrl, connectTimeout: 150, retryDelay: 1 })
@@ -220,11 +220,11 @@ describe('Postal', () => {
       assert.ok(Date.now() - started < 450)
     })
 
-    it('connectTimeout: 0 desliga o prazo e vale só o timeout total', async (t) => {
+    it('connectTimeout: 0 turns the deadline off and only the total timeout counts', async (t) => {
       hanging = await hangingServer()
 
       if (hanging === null) {
-        return t.skip('o ambiente não deixa a conexão pendente')
+        return t.skip('the environment does not leave the connection hanging')
       }
 
       const postal = new Postal('ps_x', { baseUrl: hanging.baseUrl, connectTimeout: 0, timeout: 300, maxRetries: 0 })
@@ -232,11 +232,11 @@ describe('Postal', () => {
       await assert.rejects(postal.domains.list(), (error) => error.name === 'timeout')
     })
 
-    it('o padrão é 5 s', async (t) => {
+    it('the default is 5 s', async (t) => {
       hanging = await hangingServer()
 
       if (hanging === null) {
-        return t.skip('o ambiente não deixa a conexão pendente')
+        return t.skip('the environment does not leave the connection hanging')
       }
 
       mock.timers.enable({ apis: ['setTimeout'] })
@@ -252,7 +252,7 @@ describe('Postal', () => {
 
         mock.timers.tick(4_999)
         await new Promise((resolve) => setImmediate(resolve))
-        assert.equal(outcome, undefined, 'ainda não estourou aos 4999 ms')
+        assert.equal(outcome, undefined, 'has not timed out yet at 4999 ms')
 
         mock.timers.tick(1)
         await request
@@ -262,7 +262,7 @@ describe('Postal', () => {
       }
     })
 
-    it('uma conexão que abre não é cortada pelo prazo, mesmo com resposta lenta', async () => {
+    it('a connection that opens is not cut by the deadline, even with a slow response', async () => {
       const postal = await clientWith(() => new Promise((resolve) => setTimeout(() => resolve({ body: { ok: true } }), 250)), {
         connectTimeout: 100,
         maxRetries: 0,
@@ -271,7 +271,7 @@ describe('Postal', () => {
       assert.deepEqual(await postal.domains.list(), { ok: true })
     })
 
-    it('com fetch próprio o prazo de conexão não é aplicado', async () => {
+    it('with your own fetch the connection deadline is not applied', async () => {
       const postal = new Postal('ps_x', {
         connectTimeout: 1,
         fetch: async () => {
@@ -286,13 +286,13 @@ describe('Postal', () => {
   })
 
   describe('rateLimit', () => {
-    it('é null antes da primeira requisição', async () => {
+    it('is null before the first request', async () => {
       const postal = await clientWith(() => ({ body: {} }))
 
       assert.equal(postal.rateLimit, null)
     })
 
-    it('lê os cabeçalhos da última resposta, sem requisição extra', async () => {
+    it('reads the headers of the last response, with no extra request', async () => {
       const postal = await clientWith((_, count) => ({
         body: { id: 'em_1' },
         headers: { 'x-ratelimit-limit': '10', 'x-ratelimit-remaining': String(10 - count) },
@@ -307,14 +307,14 @@ describe('Postal', () => {
       assert.ok(server.requests.every((request) => request.url === '/emails'))
     })
 
-    it('continua null quando a resposta não traz os cabeçalhos', async () => {
+    it('stays null when the response carries no headers', async () => {
       const postal = await clientWith(() => ({ body: {} }))
 
       await postal.domains.list()
       assert.equal(postal.rateLimit, null)
     })
 
-    it('uma resposta sem os cabeçalhos mantém o último valor conhecido', async () => {
+    it('a response without the headers keeps the last known value', async () => {
       const postal = await clientWith((_, count) => ({
         body: {},
         headers: count === 1 ? { 'x-ratelimit-limit': '5', 'x-ratelimit-remaining': '4' } : {},
@@ -325,7 +325,7 @@ describe('Postal', () => {
       assert.equal(postal.rateLimit?.remaining, 4)
     })
 
-    it('na 429, o erro e o cliente trazem Retry-After e X-RateLimit-Reset', async () => {
+    it('on a 429, the error and the client carry Retry-After and X-RateLimit-Reset', async () => {
       const headers = { 'x-ratelimit-limit': '2', 'x-ratelimit-remaining': '0', 'retry-after': '3', 'x-ratelimit-reset': '1790000000' }
       const postal = await clientWith(() => apiError(429, 'rate_limit_exceeded', 'Too many', headers), { maxRetries: 0 })
       const expected = { limit: 2, remaining: 0, retryAfter: 3, resetAt: 1790000000 }
@@ -339,7 +339,7 @@ describe('Postal', () => {
       assert.deepEqual(postal.rateLimit, expected)
     })
 
-    it('ignora valores que não são números inteiros', async () => {
+    it('ignores values that are not whole numbers', async () => {
       const postal = await clientWith(() => ({
         body: {},
         headers: { 'x-ratelimit-limit': 'abc', 'x-ratelimit-remaining': '7', 'retry-after': 'Wed, 21 Oct 2026 07:28:00 GMT' },
@@ -350,8 +350,8 @@ describe('Postal', () => {
     })
   })
 
-  describe('contatos', () => {
-    it('upsert por external_id usa /contacts/batch e devolve o resultado do item', async () => {
+  describe('contacts', () => {
+    it('upsert by external_id uses /contacts/batch and returns the item result', async () => {
       const postal = await clientWith(() => ({
         body: {
           object: 'contact_batch', status: 'completed', total: 1,
@@ -367,7 +367,7 @@ describe('Postal', () => {
       assert.deepEqual(server.requests[0].body, { contacts: [{ external_id: 'user_42', email: 'fulano@exemplo.com', properties: { plan: 'pro' } }] })
     })
 
-    it('upsert com item falho lança validation_error com a mensagem do item', async () => {
+    it('upsert with a failed item throws validation_error with the item\'s message', async () => {
       const postal = await clientWith(() => ({
         body: { object: 'contact_batch', status: 'completed', total: 1, results: [{ index: 0, status: 'failed', id: null, external_id: null, email: null, error: 'No contact has this external_id. Send its `email` to create it.' }] },
       }))
@@ -375,7 +375,7 @@ describe('Postal', () => {
       await assert.rejects(postal.contacts.upsert({ external_id: 'nobody' }), (error) => error.name === 'validation_error' && /Send its `email`/.test(error.message))
     })
 
-    it('codifica e-mail e external_id no caminho', async () => {
+    it('encodes email and external_id in the path', async () => {
       const postal = await clientWith(() => ({ body: { object: 'contact', id: 'c1' } }))
 
       await postal.contacts.get('fulano+teste@exemplo.com')
@@ -389,7 +389,7 @@ describe('Postal', () => {
       ])
     })
 
-    it('update, topics e segmentos', async () => {
+    it('update, topics and segments', async () => {
       const postal = await clientWith(() => ({ body: { id: 'c1' } }))
 
       await postal.contacts.update('c1', { first_name: 'Fulano' })
@@ -407,8 +407,8 @@ describe('Postal', () => {
     })
   })
 
-  describe('listas', () => {
-    it('manda filtros na query e junta listas com vírgula', async () => {
+  describe('lists', () => {
+    it('sends filters in the query and joins lists with commas', async () => {
       const postal = await clientWith(() => ({ body: { object: 'list', has_more: false, data: [] } }))
 
       await postal.emails.list({ limit: 5, status: ['bounced', 'complained'], search: undefined })
@@ -416,7 +416,7 @@ describe('Postal', () => {
       assert.equal(server.requests[0].url, '/emails?limit=5&status=bounced%2Ccomplained')
     })
 
-    it('iterate segue o cursor after até has_more ser falso', async () => {
+    it('iterate follows the after cursor until has_more is false', async () => {
       const postal = await clientWith((request) => {
         const after = new URL(request.url, 'http://x').searchParams.get('after')
 
@@ -436,8 +436,8 @@ describe('Postal', () => {
     })
   })
 
-  describe('eventos, domínios e demais recursos', () => {
-    it('envia evento com contato e propriedades', async () => {
+  describe('events, domains and other resources', () => {
+    it('sends an event with a contact and properties', async () => {
       const postal = await clientWith(() => ({ status: 201, body: { object: 'event', id: 'ev1', contact_id: 'c1' } }))
       const result = await postal.events.send({ name: 'signup', contact: 'fulano@exemplo.com', properties: { plan: 'free' } }, { idempotencyKey: 'signup-42' })
 
@@ -447,7 +447,7 @@ describe('Postal', () => {
       assert.deepEqual(server.requests[0].body, { name: 'signup', contact: 'fulano@exemplo.com', properties: { plan: 'free' } })
     })
 
-    it('domínios: list, get e verify', async () => {
+    it('domains: list, get and verify', async () => {
       const postal = await clientWith(() => ({ body: { object: 'domain', id: 'd1' } }))
 
       await postal.domains.list({ status: 'verified' })
@@ -457,7 +457,7 @@ describe('Postal', () => {
       assert.deepEqual(server.requests.map((r) => `${r.method} ${r.url}`), ['GET /domains?status=verified', 'GET /domains/d1', 'POST /domains/d1/verify'])
     })
 
-    it('e-mails: get, update, cancel, batch e raw', async () => {
+    it('emails: get, update, cancel, batch and raw', async () => {
       const postal = await clientWith((request) => (request.url.endsWith('/raw') ? { body: 'From: a@b.com' } : { body: { data: [{ id: 'x' }] } }))
 
       await postal.emails.get('e1')
@@ -468,10 +468,10 @@ describe('Postal', () => {
 
       assert.equal(raw, 'From: a@b.com')
       assert.deepEqual(server.requests.map((r) => `${r.method} ${r.url}`), ['GET /emails/e1', 'PATCH /emails/e1', 'POST /emails/e1/cancel', 'POST /emails/batch', 'GET /emails/e1/raw'])
-      assert.ok(Array.isArray(server.requests[3].body), 'o lote é uma lista')
+      assert.ok(Array.isArray(server.requests[3].body), 'the batch is a list')
     })
 
-    it('segmentos, tópicos e webhooks', async () => {
+    it('segments, topics and webhooks', async () => {
       const postal = await clientWith(() => ({ body: {} }))
 
       await postal.segments.create({ name: 'Clientes' })

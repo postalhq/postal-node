@@ -10,17 +10,17 @@ import type { RateLimit } from './rate-limit.js'
 import type { Usage } from './types.js'
 
 /**
- * Cliente da API do Postal.
+ * Postal API client.
  *
  * @example
  * import { Postal } from 'postal-so'
  *
  * const postal = new Postal(process.env.POSTAL_API_KEY)
  * await postal.emails.send({
- *   from: 'Minha empresa <voce@seudominio.com.br>',
- *   to: 'fulano@exemplo.com',
- *   subject: 'Olá',
- *   html: '<p>Bem-vindo!</p>',
+ *   from: 'Acme Store <you@yourdomain.com>',
+ *   to: 'jane@example.com',
+ *   subject: 'Hello',
+ *   html: '<p>Welcome!</p>',
  * })
  */
 export class Postal {
@@ -35,7 +35,7 @@ export class Postal {
   private readonly http: HttpClient
 
   /**
-   * @param apiKey Chave de API (`ps_...`) ou as opções do cliente. Sem chave, usa `POSTAL_API_KEY`.
+   * @param apiKey API key (`ps_...`) or the client options. Without a key, uses `POSTAL_API_KEY`.
    */
   constructor(apiKey?: string | ClientOptions, options: Omit<ClientOptions, 'apiKey'> = {}) {
     this.http = new HttpClient(typeof apiKey === 'object' ? apiKey : { ...options, ...(apiKey ? { apiKey } : {}) })
@@ -49,17 +49,17 @@ export class Postal {
   }
 
   /**
-   * O limite de requisições dos cabeçalhos da última resposta (`X-RateLimit-Limit`, `X-RateLimit-Remaining` e,
-   * na 429, `Retry-After` e `X-RateLimit-Reset`), inclusive de respostas de erro.
+   * The request limit from the headers of the last response (`X-RateLimit-Limit`, `X-RateLimit-Remaining` and,
+   * on a 429, `Retry-After` and `X-RateLimit-Reset`), including error responses.
    *
-   * Funciona com chave só de envio e não faz requisição extra (diferente de `usage()`). É `null` até chegar uma
-   * resposta com esses cabeçalhos; uma resposta sem eles mantém o último valor conhecido.
+   * Works with a sending-only key and makes no extra request (unlike `usage()`). It is `null` until a
+   * response with those headers arrives; a response without them keeps the last known value.
    */
   get rateLimit(): RateLimit | null {
     return this.http.rateLimit
   }
 
-  /** Plano, cotas e limite de requisições da conta (`GET /usage`). Funciona com chave de acesso total ou só de envio (a chave só de envio não vê os créditos). */
+  /** The account's plan, quotas and request limit (`GET /usage`). Works with a full-access or a sending-only key (a sending-only key does not see the credits). */
   usage(options?: RequestOptions): Promise<Usage> {
     return this.http.get('/usage', undefined, options)
   }

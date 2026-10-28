@@ -13,38 +13,38 @@ import { isoDate, paginate, Resource, segment } from './base.js'
 
 export class Emails extends Resource {
   /**
-   * Envia um e-mail (`POST /emails`).
+   * Sends an email (`POST /emails`).
    *
-   * Sem `idempotencyKey`, o SDK gera uma chave para esta chamada e a reaproveita nas
-   * retentativas, então uma repetição após timeout ou erro 5xx não duplica o envio.
+   * Without `idempotencyKey`, the SDK generates a key for this call and reuses it across
+   * retries, so a repeat after a timeout or a 5xx error does not duplicate the send.
    */
   send(params: SendEmailParams, options?: RequestOptions): Promise<SendEmailResponse> {
     return this.http.post('/emails', withDates(params), { options, autoIdempotency: true })
   }
 
   /**
-   * Envia até 100 e-mails numa requisição (`POST /emails/batch`). Ou todos entram na fila, ou nenhum.
+   * Sends up to 100 emails in one request (`POST /emails/batch`). Either all are queued, or none.
    */
   batch(emails: BatchEmailItem[], options?: RequestOptions): Promise<BatchEmailResponse> {
     return this.http.post('/emails/batch', emails, { options, autoIdempotency: true })
   }
 
-  /** Um e-mail com o conteúdo e o histórico de eventos (`GET /emails/{id}`). */
+  /** One email with its content and event history (`GET /emails/{id}`). */
   get(id: string, options?: RequestOptions): Promise<Email> {
     return this.http.get(`/emails/${segment(id)}`, undefined, options)
   }
 
-  /** Uma página de e-mails, do mais recente para o mais antigo (`GET /emails`). Exige chave de acesso total. */
+  /** A page of emails, newest to oldest (`GET /emails`). Needs a full-access key. */
   list(params: ListEmailsParams = {}, options?: RequestOptions): Promise<List<Email>> {
     return this.http.get('/emails', params, options)
   }
 
-  /** Percorre todos os e-mails que batem com o filtro, página a página. */
+  /** Walks through all emails matching the filter, page by page. */
   iterate(params: Omit<ListEmailsParams, 'limit'> = {}): AsyncGenerator<Email, void, undefined> {
     return paginate((page) => this.list(page), params)
   }
 
-  /** Muda a data de um e-mail agendado (`PATCH /emails/{id}`). */
+  /** Changes the date of a scheduled email (`PATCH /emails/{id}`). */
   update(id: string, params: { scheduled_at: string | Date }, options?: RequestOptions): Promise<ObjectRef> {
     return this.http.patch(
       `/emails/${segment(id)}`,
@@ -53,12 +53,12 @@ export class Emails extends Resource {
     )
   }
 
-  /** Cancela um e-mail agendado (`POST /emails/{id}/cancel`). */
+  /** Cancels a scheduled email (`POST /emails/{id}/cancel`). */
   cancel(id: string, options?: RequestOptions): Promise<ObjectRef> {
     return this.http.post(`/emails/${segment(id)}/cancel`, undefined, { options })
   }
 
-  /** A mensagem como foi enviada, em formato RFC 5322 (`GET /emails/{id}/raw`). */
+  /** The message as it was sent, in RFC 5322 format (`GET /emails/{id}/raw`). */
   raw(id: string, options?: RequestOptions): Promise<string> {
     return this.http.getText(`/emails/${segment(id)}/raw`, options)
   }

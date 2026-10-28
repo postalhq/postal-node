@@ -1,18 +1,18 @@
 /**
- * Limite de requisições por segundo lido dos cabeçalhos de uma resposta do Postal.
+ * Requests-per-second limit read from the headers of a Postal response.
  *
- * Toda resposta traz `X-RateLimit-Limit` e `X-RateLimit-Remaining`; a `429` traz também `Retry-After` e
- * `X-RateLimit-Reset`. Os campos ausentes ficam `null`. Não exige chave de acesso total (diferente de
- * `usage()`) e não faz requisição extra.
+ * Every response carries `X-RateLimit-Limit` and `X-RateLimit-Remaining`; a `429` also carries `Retry-After` and
+ * `X-RateLimit-Reset`. Missing fields are `null`. It does not need a full-access key (unlike
+ * `usage()`) and makes no extra request.
  */
 export interface RateLimit {
-  /** Requisições permitidas por segundo (`X-RateLimit-Limit`). */
+  /** Requests allowed per second (`X-RateLimit-Limit`). */
   limit: number | null
-  /** Quantas ainda cabem na janela atual (`X-RateLimit-Remaining`). */
+  /** How many still fit in the current window (`X-RateLimit-Remaining`). */
   remaining: number | null
-  /** Segundos para esperar antes de tentar de novo (`Retry-After`, só na 429). */
+  /** Seconds to wait before trying again (`Retry-After`, only on a 429). */
   retryAfter: number | null
-  /** Quando o limite volta, em timestamp Unix em segundos (`X-RateLimit-Reset`, só na 429). */
+  /** When the limit comes back, as a Unix timestamp in seconds (`X-RateLimit-Reset`, only on a 429). */
   resetAt: number | null
 }
 
@@ -23,7 +23,7 @@ function integer(value: string | null): number | null {
 }
 
 /**
- * Lê os cabeçalhos de uma resposta. Devolve `null` quando nenhum dos quatro veio.
+ * Reads the headers of a response. Returns `null` when none of the four came.
  */
 export function parseRateLimit(headers: Headers): RateLimit | null {
   const rateLimit: RateLimit = {

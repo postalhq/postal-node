@@ -5,27 +5,27 @@ const LABEL = /^(?!-)[a-z0-9-]{1,63}(?<!-)$/
 const LOOPBACK_HOSTS = ['localhost', '127.0.0.1']
 
 /**
- * Monta o valor do cabeçalho `OTP-Token` (draft-goto-otp-token), que entrega o código de um e-mail de verificação
- * de forma legível por máquina e presa a uma origem, para que o cliente de e-mail o ofereça à página certa:
- * `"123456"; origin="https://exemplo.com"`.
+ * Builds the value of the `OTP-Token` header (draft-goto-otp-token), which delivers the code of a verification email
+ * in a machine-readable way, bound to an origin, so that the mail client offers it to the right page:
+ * `"123456"; origin="https://example.com"`.
  *
- * O código precisa ser ASCII imprimível (de espaço a `~`) e não vazio; os únicos escapes do RFC 9651 (`\` e `"`)
- * são aplicados. A origem precisa estar na forma canônica: `https://host[:porta]` em minúsculas, sem porta padrão,
- * sem caminho nem barra no fim (`http` só vale para `localhost` e `127.0.0.1`). Lança `PostalError`
- * (`statusCode` 0, `name` `validation_error`) quando algo não serve, antes de a API recusar o envio.
+ * The code must be printable ASCII (from space to `~`) and non-empty; the only RFC 9651 escapes (`\` and `"`)
+ * are applied. The origin must be in canonical form: `https://host[:port]` in lowercase, no default port,
+ * no path and no trailing slash (`http` is only valid for `localhost` and `127.0.0.1`). Throws `PostalError`
+ * (`statusCode` 0, `name` `validation_error`) when something will not do, before the API refuses the send.
  *
  * @example
  * await postal.emails.send({
- *   from: 'voce@seudominio.com.br',
- *   to: 'fulano@exemplo.com',
- *   subject: 'Seu código',
- *   html: '<p>Seu código: 123456</p>',
- *   headers: { 'OTP-Token': otpTokenHeader('123456', 'https://exemplo.com') },
+ *   from: 'you@yourdomain.com',
+ *   to: 'jane@example.com',
+ *   subject: 'Your code',
+ *   html: '<p>Your code: 123456</p>',
+ *   headers: { 'OTP-Token': otpTokenHeader('123456', 'https://example.com') },
  * })
  */
 export function otpTokenHeader(code: string, origin: string): string {
   if (typeof code !== 'string' || !/^[\x20-\x7E]+$/.test(code)) {
-    throw invalid('O código do OTP-Token precisa ter ao menos um caractere e só ASCII imprimível (de espaço a "~").')
+    throw invalid('The OTP-Token code needs at least one character and only printable ASCII (from space to "~").')
   }
 
   if (typeof origin !== 'string' || !isCanonicalOrigin(origin)) {
@@ -33,7 +33,7 @@ export function otpTokenHeader(code: string, origin: string): string {
     const hint = canonical === undefined ? '' : ` Use "${canonical}".`
 
     throw invalid(
-      `A origem do OTP-Token precisa ser a origem https canônica de quem pede o código, como "https://exemplo.com" (minúsculas, sem caminho, sem barra no fim e sem porta padrão).${hint}`,
+      `The OTP-Token origin must be the canonical https origin of whoever asks for the code, such as "https://example.com" (lowercase, no path, no trailing slash and no default port).${hint}`,
     )
   }
 
@@ -69,7 +69,7 @@ function isCanonicalOrigin(origin: string): boolean {
     return false
   }
 
-  // A serialização do URL (WHATWG) confere hosts numéricos, IPv6 e o que mais a regra acima deixou passar.
+  // The URL serialization (WHATWG) checks numeric hosts, IPv6 and whatever else the rule above let through.
   try {
     return new URL(origin).origin === origin
   } catch {
@@ -77,7 +77,7 @@ function isCanonicalOrigin(origin: string): boolean {
   }
 }
 
-/** A origem canônica do endereço dado, se ele tiver uma que sirva. */
+/** The canonical origin of the given address, if it has one that will do. */
 function canonicalOf(value: string): string | undefined {
   try {
     const candidate = new URL(value).origin

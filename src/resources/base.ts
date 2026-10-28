@@ -6,21 +6,21 @@ export abstract class Resource {
 }
 
 /**
- * Codifica um ID ou e-mail para ir no caminho da URL.
+ * Encodes an ID or email to go in the URL path.
  */
 export function segment(value: string): string {
   return encodeURIComponent(value)
 }
 
 /**
- * Converte `Date` em ISO 8601 e deixa o resto como está.
+ * Converts a `Date` to ISO 8601 and leaves the rest as it is.
  */
 export function isoDate(value: string | Date | undefined): string | undefined {
   return value instanceof Date ? value.toISOString() : value
 }
 
 /**
- * Percorre todas as páginas de uma lista, de 100 em 100, seguindo `after` até `has_more` ser falso.
+ * Walks through all the pages of a list, 100 at a time, following `after` until `has_more` is false.
  */
 export async function* paginate<T extends { id: string }, P extends ListParams>(
   fetchPage: (params: P) => Promise<List<T>>,

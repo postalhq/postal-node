@@ -1,23 +1,25 @@
 # postal-so
 
-SDK e CLI oficiais do [Postal](https://postal.so) para Node.js: envie e-mails, mantenha contatos, dispare eventos de produto e confira webhooks, sem dependências de runtime.
+[Português (pt-BR)](README.pt-BR.md) · English
 
-- Node 18 ou mais novo, ESM, com tipos TypeScript.
-- Usa o `fetch` do Node. Nenhuma dependência instalada junto.
-- Erros tipados, chave de idempotência e retentativa automática em 429 e 5xx.
-- CLI `postal` no mesmo pacote.
+Official [Postal](https://postal.so) SDK and CLI for Node.js: send emails, keep contacts, fire product events and verify webhooks, with no runtime dependencies.
 
-Documentação da API: <https://postal.so/docs>. Guia deste SDK: <https://postal.so/docs/sdks>.
+- Node 18 or newer, ESM, with TypeScript types.
+- Uses Node's `fetch`. No dependencies are installed with it.
+- Typed errors, idempotency keys and automatic retries on 429 and 5xx.
+- The `postal` CLI in the same package.
 
-## Instalação
+API documentation: <https://postal.so/en/docs>. Guide to this SDK: <https://postal.so/en/docs/sdks>.
+
+## Installation
 
 ```bash
 npm install postal-so
 ```
 
-## Primeiro envio
+## First send
 
-Crie uma chave de API em **Chaves de API**, no painel (ela começa com `ps_`), guarde-a numa variável de ambiente e verifique o domínio de onde você envia.
+Create an API key under **API keys** in the dashboard (it starts with `ps_`), store it in an environment variable and verify the domain you send from.
 
 ```bash
 export POSTAL_API_KEY=ps_xxx
@@ -26,158 +28,158 @@ export POSTAL_API_KEY=ps_xxx
 ```ts
 import { Postal } from 'postal-so'
 
-const postal = new Postal() // lê POSTAL_API_KEY; ou new Postal('ps_xxx')
+const postal = new Postal() // reads POSTAL_API_KEY; or new Postal('ps_xxx')
 
 const { id } = await postal.emails.send({
-  from: 'Minha empresa <voce@seudominio.com.br>',
-  to: 'fulano@exemplo.com',
-  subject: 'Bem-vindo!',
-  html: '<p>Que bom ter você por aqui.</p>',
-  text: 'Que bom ter você por aqui.',
+  from: 'Acme Store <you@yourdomain.com>',
+  to: 'jane@example.com',
+  subject: 'Welcome!',
+  html: '<p>We are glad to have you here.</p>',
+  text: 'We are glad to have you here.',
 })
 ```
 
-Não use a chave no navegador nem em apps: chame o Postal a partir do seu servidor. Para sistemas que só disparam e-mails e eventos, crie uma chave **só de envio**.
+Do not use the key in a browser or an app: call Postal from your server. For systems that only send emails and events, create a **sending-only** key.
 
-Os campos têm os mesmos nomes da API (`reply_to`, `scheduled_at`, `external_id`...), então a documentação em <https://postal.so/docs/api> vale direto para o SDK. As opções da chamada (como `idempotencyKey`) usam camelCase.
+Fields have the same names as the API (`reply_to`, `scheduled_at`, `external_id`...), so the documentation at <https://postal.so/en/docs/api> applies directly to the SDK. Call options (such as `idempotencyKey`) use camelCase.
 
-### Opções do cliente
+### Client options
 
 ```ts
 const postal = new Postal('ps_xxx', {
-  baseUrl: 'https://api.postal.so', // padrão
-  maxRetries: 2, // tentativas extras em 429 e 5xx; 0 desliga
-  timeout: 30_000, // milissegundos por tentativa, do início ao fim
-  connectTimeout: 5_000, // milissegundos só para abrir a conexão; 0 desliga
-  retryDelay: 500, // espera base em ms, dobra a cada tentativa
+  baseUrl: 'https://api.postal.so', // default
+  maxRetries: 2, // extra attempts on 429 and 5xx; 0 turns it off
+  timeout: 30_000, // milliseconds per attempt, from start to finish
+  connectTimeout: 5_000, // milliseconds just to open the connection; 0 turns it off
+  retryDelay: 500, // base wait in ms, doubles on every attempt
 })
 ```
 
-### Tempos limite e retentativas
+### Timeouts and retries
 
-| Opção | Padrão | O que limita |
+| Option | Default | What it limits |
 | --- | --- | --- |
-| `timeout` | 30 000 ms | Cada tentativa inteira: conexão, envio do corpo e leitura da resposta. Mantenha alto se você envia anexos grandes (até 40 MB). |
-| `connectTimeout` | 5 000 ms | Só a abertura da conexão (DNS, TCP e TLS). Se estourar, vira `PostalNetworkError` com `name` `connect_timeout`. `0` desliga. |
-| `maxRetries` | 2 | Tentativas extras (3 no total). `0` desliga. |
+| `timeout` | 30 000 ms | The whole attempt: connection, sending the body and reading the response. Keep it high if you send large attachments (up to 40 MB). |
+| `connectTimeout` | 5 000 ms | Only opening the connection (DNS, TCP and TLS). If it runs out, it becomes a `PostalNetworkError` with `name` `connect_timeout`. `0` turns it off. |
+| `maxRetries` | 2 | Extra attempts (3 in total). `0` turns it off. |
 
-O pior caso de bloqueio de uma chamada é:
+The worst case for a call to block is:
 
 ```
-(maxRetries + 1) × tempo de cada tentativa + esperas entre tentativas
+(maxRetries + 1) × time of each attempt + waits between attempts
 ```
 
-A espera começa em 500 ms e dobra a cada tentativa, com até 25% a mais (com os padrões, no máximo cerca de 1,9 s no total). Num 429, a espera é o `Retry-After` (até 30 s por tentativa). Com os padrões:
+The wait starts at 500 ms and doubles on every attempt, with up to 25% extra (with the defaults, about 1.9 s in total at most). On a 429, the wait is the `Retry-After` (up to 30 s per attempt). With the defaults:
 
-- **API inalcançável** (a conexão não abre): `3 × 5 s + ~1,9 s`, cerca de **17 s**. O `connectTimeout` é o que faz isso valer; só com o `timeout` seriam ~92 s.
-- **API aceita a conexão mas não responde**: `3 × 30 s + ~1,9 s`, cerca de **92 s**.
+- **API unreachable** (the connection does not open): `3 × 5 s + ~1.9 s`, about **17 s**. `connectTimeout` is what makes this hold; with `timeout` alone it would be ~92 s.
+- **API accepts the connection but does not answer**: `3 × 30 s + ~1.9 s`, about **92 s**.
 
-Recomendações:
+Recommendations:
 
-- **Requisição web síncrona** (alguém esperando a página): `timeout: 10_000` e `maxRetries: 1`. Com a API inalcançável isso bloqueia cerca de 11 s (`2 × 5 s + ~0,6 s`; use `connectTimeout: 3_000` para ~7 s) e no máximo cerca de 21 s se ela travar depois de conectar. Se a requisição envia anexos grandes, mantenha o `timeout` mais alto ou envie por uma fila.
-- **Job em fila** (ninguém esperando): fique com os padrões. Ou melhor, deixe a própria fila repetir o job.
+- **Synchronous web request** (someone waiting for the page): `timeout: 10_000` and `maxRetries: 1`. With the API unreachable this blocks about 11 s (`2 × 5 s + ~0.6 s`; use `connectTimeout: 3_000` for ~7 s) and at most about 21 s if it hangs after connecting. If the request sends large attachments, keep `timeout` higher or send through a queue.
+- **Queued job** (nobody waiting): keep the defaults. Or better, let the queue itself retry the job.
 
 ```ts
 const postal = new Postal(process.env.POSTAL_API_KEY, { timeout: 10_000, maxRetries: 1 })
 ```
 
-O `connectTimeout` usa o aviso de "conexão aberta" do undici (o `fetch` global do Node, via `diagnostics_channel`), porque o `fetch` não tem um prazo só para a conexão. Ele vale quando o SDK usa o `fetch` global do Node e este expõe o undici (`process.versions.undici`, testado no Node 22). Com um `fetch` próprio (opção `fetch`) ou em um runtime sem undici, ele não é aplicado e vale só o `timeout`.
+`connectTimeout` uses undici's "connection opened" notice (Node's global `fetch`, through `diagnostics_channel`), because `fetch` has no deadline just for the connection. It applies when the SDK uses Node's global `fetch` and it exposes undici (`process.versions.undici`, tested on Node 22). With your own `fetch` (the `fetch` option) or on a runtime without undici, it is not applied and only `timeout` counts.
 
-## E-mails
+## Emails
 
 ```ts
-// Com template publicado: from, subject e reply_to vêm do template
+// With a published template: from, subject and reply_to come from the template
 await postal.emails.send({
-  to: 'fulano@exemplo.com',
-  template: { id: 'boas-vindas', variables: { NOME: 'Fulano' } },
+  to: 'jane@example.com',
+  template: { id: 'welcome', variables: { NAME: 'Jane' } },
 })
 
-// Agendado (até 30 dias), com anexo e etiqueta
+// Scheduled (up to 30 days), with an attachment and a tag
 const { id } = await postal.emails.send({
-  from: 'voce@seudominio.com.br',
-  to: ['fulano@exemplo.com'],
-  subject: 'Sua nota fiscal',
-  html: '<p>Segue em anexo.</p>',
-  attachments: [{ filename: 'nota.pdf', content: pdfEmBase64 }],
-  tags: [{ name: 'categoria', value: 'fiscal' }],
+  from: 'you@yourdomain.com',
+  to: ['jane@example.com'],
+  subject: 'Your invoice',
+  html: '<p>Attached.</p>',
+  attachments: [{ filename: 'invoice.pdf', content: pdfInBase64 }],
+  tags: [{ name: 'category', value: 'billing' }],
   scheduled_at: new Date(Date.now() + 3600_000),
 })
 
-await postal.emails.update(id, { scheduled_at: '2026-10-26T09:00:00-03:00' }) // reagenda
-await postal.emails.cancel(id) // cancela
+await postal.emails.update(id, { scheduled_at: '2026-10-26T09:00:00-03:00' }) // reschedules
+await postal.emails.cancel(id) // cancels
 
-// Até 100 e-mails numa requisição: ou todos entram na fila, ou nenhum
+// Up to 100 emails in one request: either all are queued, or none
 await postal.emails.batch([
-  { from: 'voce@seudominio.com.br', to: 'ana@exemplo.com', subject: 'Seu cupom', html: '<p>BEMVINDA</p>' },
-  { from: 'voce@seudominio.com.br', to: 'bia@exemplo.com', subject: 'Seu cupom', html: '<p>BEMVINDA</p>' },
+  { from: 'you@yourdomain.com', to: 'ann@example.com', subject: 'Your coupon', html: '<p>WELCOME</p>' },
+  { from: 'you@yourdomain.com', to: 'bea@example.com', subject: 'Your coupon', html: '<p>WELCOME</p>' },
 ])
 
-const email = await postal.emails.get(id) // status em email.last_event e histórico em email.events
+const email = await postal.emails.get(id) // status in email.last_event and history in email.events
 const page = await postal.emails.list({ status: ['bounced', 'complained'], limit: 50 })
 ```
 
-`emails.list` e os demais métodos de leitura exigem uma chave de acesso total. Duas leituras também funcionam com uma chave só de envio: `emails.get` (só os e-mails que ela enviou) e `usage()` (sem os créditos de verificação).
+`emails.list` and the other read methods need a full-access key. Two reads also work with a sending-only key: `emails.get` (only the emails it sent) and `usage()` (without the verification credits).
 
-### Códigos de uso único (`OTP-Token`)
+### One-time codes (`OTP-Token`)
 
-O cabeçalho `OTP-Token` ([draft-goto-otp-token](https://datatracker.ietf.org/doc/draft-goto-otp-token/)) entrega o código de um e-mail de verificação de forma legível por máquina e presa a uma origem, para que o cliente de e-mail o ofereça à página que o pediu. O SDK envia `headers` como estão (sem codificar as aspas, em `send`, `batch`, agendados e com template); `otpTokenHeader(código, origem)` monta o valor com o escape certo:
+The `OTP-Token` header ([draft-goto-otp-token](https://datatracker.ietf.org/doc/draft-goto-otp-token/)) delivers the code of a verification email in a machine-readable way, bound to an origin, so that the mail client offers it to the page that asked for it. The SDK sends `headers` as they are (without encoding the quotes, in `send`, `batch`, scheduled sends and with a template); `otpTokenHeader(code, origin)` builds the value with the right escaping:
 
 ```ts
 import { Postal, otpTokenHeader } from 'postal-so'
 
 await postal.emails.send({
-  from: 'voce@seudominio.com.br',
-  to: 'fulano@exemplo.com',
-  subject: 'Seu código de verificação',
-  html: '<p>Seu código: <b>123456</b></p>',
-  headers: { 'OTP-Token': otpTokenHeader('123456', 'https://exemplo.com') }, // "123456"; origin="https://exemplo.com"
+  from: 'you@yourdomain.com',
+  to: 'jane@example.com',
+  subject: 'Your verification code',
+  html: '<p>Your code: <b>123456</b></p>',
+  headers: { 'OTP-Token': otpTokenHeader('123456', 'https://example.com') }, // "123456"; origin="https://example.com"
 })
 ```
 
-O código precisa ser ASCII imprimível; a origem, a canônica de quem pede o código (`https://host[:porta]` em minúsculas, sem caminho, sem barra no fim e sem porta padrão; `http` só em `localhost`). Se não servir, `otpTokenHeader` lança `PostalError` (`name: 'validation_error'`, `statusCode: 0`) antes de a API recusar o envio com 422. Passe o cabeçalho uma vez só.
+The code must be printable ASCII; the origin, the canonical one of whoever asks for the code (`https://host[:port]` in lowercase, no path, no trailing slash and no default port; `http` only on `localhost`). If it will not do, `otpTokenHeader` throws `PostalError` (`name: 'validation_error'`, `statusCode: 0`) before the API refuses the send with 422. Pass the header only once.
 
-### Idempotência
+### Idempotency
 
-Para repetir um envio sem mandar o e-mail duas vezes, passe uma chave que identifique o *motivo* do envio (não a tentativa):
+To repeat a send without emailing twice, pass a key that identifies the *reason* for the send (not the attempt):
 
 ```ts
-await postal.emails.send(params, { idempotencyKey: 'pedido-10482-enviado' })
+await postal.emails.send(params, { idempotencyKey: 'order-10482-shipped' })
 ```
 
-Sem chave, o SDK gera uma (um UUID) para cada chamada de `emails.send`, `emails.batch` e `events.send` e a reaproveita nas retentativas, então um timeout, uma falha de conexão ou um 5xx não duplica o envio. Já os outros `POST` e `PATCH` (como `contacts.create`, `segments.create` e `emails.cancel`) não levam chave: o SDK só os repete em 429 (a API recusou antes de processar), nunca após um 5xx ou uma falha de rede, porque repetir poderia duplicar o efeito. `contacts.upsert` e `contacts.batch` são seguros de repetir e por isso são repetidos. Veja [Idempotência](https://postal.so/docs/idempotencia).
+Without a key, the SDK generates one (a UUID) for each call of `emails.send`, `emails.batch` and `events.send` and reuses it on retries, so a timeout, a connection failure or a 5xx does not duplicate the send. The other `POST` and `PATCH` calls (such as `contacts.create`, `segments.create` and `emails.cancel`) carry no key: the SDK only repeats them on 429 (the API refused before processing), never after a 5xx or a network failure, because repeating could duplicate the effect. `contacts.upsert` and `contacts.batch` are safe to repeat and are therefore repeated. See [Idempotency](https://postal.so/en/docs/idempotencia).
 
-## Contatos
+## Contacts
 
-O `external_id` é o ID da pessoa no seu sistema. `upsert` cria ou atualiza o contato procurando por `id`, depois `external_id`, depois `email`, e repetir a chamada é seguro.
+`external_id` is the person's ID in your system. `upsert` creates or updates the contact looking it up by `id`, then `external_id`, then `email`, and repeating the call is safe.
 
 ```ts
 const result = await postal.contacts.upsert({
   external_id: 'user_42',
-  email: 'fulano@exemplo.com', // obrigatório para criar um contato novo
-  first_name: 'Fulano',
-  properties: { plan: 'pro' }, // a propriedade precisa existir antes
+  email: 'jane@example.com', // required to create a new contact
+  first_name: 'Jane',
+  properties: { plan: 'pro' }, // the property must exist beforehand
 })
 console.log(result.status) // 'created' | 'updated' | 'unchanged'
 
 const contact = await postal.contacts.getByExternalId('user_42')
-await postal.contacts.update('fulano@exemplo.com', { unsubscribed: true })
+await postal.contacts.update('jane@example.com', { unsubscribed: true })
 await postal.contacts.delete(contact.id)
 
-for await (const c of postal.contacts.iterate({ search: 'ana' })) {
-  console.log(c.email) // percorre todas as páginas
+for await (const c of postal.contacts.iterate({ search: 'ann' })) {
+  console.log(c.email) // walks through all the pages
 }
 ```
 
-Quem se descadastrou só volta a receber se você informar `resubscribe: { consented_at, proof }` com a prova do novo consentimento. `contacts.batch([...])` faz o mesmo para muitos contatos de uma vez.
+Someone who unsubscribed only receives again if you send `resubscribe: { consented_at, proof }` with proof of the new consent. `contacts.batch([...])` does the same for many contacts at once.
 
-## Eventos
+## Events
 
-Eventos contam ao Postal o que acontece no seu produto e iniciam as automações com aquele gatilho. Funcionam com chave só de envio.
+Events tell Postal what happens in your product and start the automations with that trigger. They work with a sending-only key.
 
 ```ts
 await postal.events.send({
   name: 'signup',
-  contact: 'fulano@exemplo.com', // um e-mail novo cria o contato
+  contact: 'jane@example.com', // a new email creates the contact
   properties: { plan: 'free', source: 'site' },
 })
 
@@ -185,29 +187,29 @@ await postal.events.send(
   {
     name: 'order.paid',
     contact: 'external_id:user_42',
-    properties: { total: 199.9, currency: 'BRL' },
-    contact_properties: { plan: 'pro' }, // atualiza o contato antes das automações
+    properties: { total: 199.9, currency: 'USD' },
+    contact_properties: { plan: 'pro' }, // updates the contact before the automations
   },
   { idempotencyKey: 'order-10482-paid' },
 )
 ```
 
-## Segmentos, tópicos e domínios
+## Segments, topics and domains
 
 ```ts
-const { id: segmentId } = await postal.segments.create({ name: 'Clientes ativos' })
-await postal.contacts.addToSegment('fulano@exemplo.com', segmentId)
+const { id: segmentId } = await postal.segments.create({ name: 'Active customers' })
+await postal.contacts.addToSegment('jane@example.com', segmentId)
 
-await postal.topics.create({ name: 'Novidades', default_subscription: 'opt_in', visibility: 'public' })
+await postal.topics.create({ name: 'News', default_subscription: 'opt_in', visibility: 'public' })
 
 const domains = await postal.domains.list()
-await postal.domains.verify(domains.data[0].id) // confere o DNS agora
-const domain = await postal.domains.get(domains.data[0].id) // registros e status de cada um
+await postal.domains.verify(domains.data[0].id) // checks DNS now
+const domain = await postal.domains.get(domains.data[0].id) // records and the status of each
 ```
 
 ## Webhooks
 
-Cadastre o endpoint no painel ou com `postal.webhooks.create({ endpoint, events })` e guarde o `signing_secret` (`whsec_...`). `verifyWebhook(payload, headers, secret)` confere a assinatura (Standard Webhooks: HMAC-SHA256 de `{webhook-id}.{webhook-timestamp}.{corpo}`), recusa mensagens com mais de 5 minutos de diferença e devolve o evento. Use o corpo **cru**, exatamente como chegou.
+Register the endpoint in the dashboard or with `postal.webhooks.create({ endpoint, events })` and keep the `signing_secret` (`whsec_...`). `verifyWebhook(payload, headers, secret)` checks the signature (Standard Webhooks: HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`), refuses messages more than 5 minutes off and returns the event. Use the **raw** body, exactly as it arrived.
 
 ```ts
 import express from 'express'
@@ -220,7 +222,7 @@ app.post('/webhooks/postal', express.raw({ type: 'application/json' }), (req, re
     const event = verifyWebhook(req.body, req.headers, process.env.POSTAL_WEBHOOK_SECRET!)
 
     if (event.type === 'email.bounced') {
-      // descarte o endereço
+      // drop the address
     }
 
     res.sendStatus(200)
@@ -233,21 +235,21 @@ app.post('/webhooks/postal', express.raw({ type: 'application/json' }), (req, re
 })
 ```
 
-Em rotas no estilo `Request` (Next.js, Hono...):
+In `Request`-style routes (Next.js, Hono...):
 
 ```ts
 export async function POST(request: Request) {
-  const body = await request.text() // cru, antes de qualquer JSON.parse
+  const body = await request.text() // raw, before any JSON.parse
   const event = verifyWebhook(body, request.headers, process.env.POSTAL_WEBHOOK_SECRET!)
   return new Response('ok')
 }
 ```
 
-Use o cabeçalho `webhook-id` para descartar entregas repetidas. Veja [Webhooks](https://postal.so/docs/webhooks).
+Use the `webhook-id` header to discard repeated deliveries. See [Webhooks](https://postal.so/en/docs/webhooks).
 
-## Erros
+## Errors
 
-Toda resposta de erro do Postal vira um `PostalError` com o `statusCode`, o `name` (código estável em inglês, como `validation_error`) e a `message` do Postal. Trate pelo `name`, não pela mensagem.
+Every error response from Postal becomes a `PostalError` with the `statusCode`, the `name` (a stable code in English, such as `validation_error`) and Postal's `message`. Handle it by `name`, not by message.
 
 ```ts
 import { PostalError } from 'postal-so'
@@ -259,77 +261,77 @@ try {
     console.error(error.statusCode, error.name, error.message)
 
     if (error.name === 'daily_quota_exceeded') {
-      // a cota diária acabou; volta às 00:00 UTC
+      // the daily quota ran out; it comes back at 00:00 UTC
     }
   }
   throw error
 }
 ```
 
-Falhas de rede e tempo esgotado viram `PostalNetworkError` (`statusCode` 0; `name` `network_error`, `timeout` ou `connect_timeout`). Os códigos estão em <https://postal.so/docs/erros>.
+Network failures and timeouts become `PostalNetworkError` (`statusCode` 0; `name` `network_error`, `timeout` or `connect_timeout`). The codes are at <https://postal.so/en/docs/erros>.
 
-### Retentativas
+### Retries
 
-- `429 rate_limit_exceeded` é repetido sempre, esperando o `Retry-After`. Cota esgotada (`daily_quota_exceeded`, `monthly_quota_exceeded`) não é repetida.
-- `5xx`, `409 concurrent_idempotent_requests` e falhas de rede são repetidos em `GET`, `DELETE`, nos envios com chave de idempotência (a automática inclusa) e em `contacts.upsert`. Num `POST` sem chave, como `contacts.create`, não: repetir poderia duplicar o efeito.
-- A espera começa em 500 ms e dobra a cada tentativa (máximo de 30 s).
-- Uma falha ou tempo esgotado de conexão (`connect_timeout`) conta como falha de rede e segue a mesma regra.
+- `429 rate_limit_exceeded` is always repeated, waiting for the `Retry-After`. An exhausted quota (`daily_quota_exceeded`, `monthly_quota_exceeded`) is not repeated.
+- `5xx`, `409 concurrent_idempotent_requests` and network failures are repeated on `GET`, `DELETE`, on sends with an idempotency key (the automatic one included) and on `contacts.upsert`. On a `POST` without a key, such as `contacts.create`, they are not: repeating could duplicate the effect.
+- The wait starts at 500 ms and doubles on every attempt (30 s at most).
+- A connection failure or timeout (`connect_timeout`) counts as a network failure and follows the same rule.
 
-### Limite de requisições
+### Rate limit
 
-`postal.rateLimit` guarda o limite de requisições por segundo lido dos cabeçalhos da última resposta (`X-RateLimit-Limit`, `X-RateLimit-Remaining` e, na 429, `Retry-After` e `X-RateLimit-Reset`). Diferente de `postal.usage()`, funciona com chave **só de envio** e não faz requisição extra.
+`postal.rateLimit` keeps the requests-per-second limit read from the headers of the last response (`X-RateLimit-Limit`, `X-RateLimit-Remaining` and, on a 429, `Retry-After` and `X-RateLimit-Reset`). Unlike `postal.usage()`, it works with a **sending-only** key and makes no extra request.
 
 ```ts
 await postal.emails.send(params)
 
-const rateLimit = postal.rateLimit // null até chegar uma resposta com os cabeçalhos
+const rateLimit = postal.rateLimit // null until a response with the headers arrives
 // { limit: 10, remaining: 9, retryAfter: null, resetAt: null }
 
 if (rateLimit !== null && rateLimit.remaining === 0) {
-  // desacelere o envio em lote
+  // slow down the bulk send
 }
 ```
 
-Os campos são `limit` e `remaining` (requisições por segundo), e `retryAfter` (segundos) e `resetAt` (timestamp Unix em segundos), que só vêm na 429. O que não veio é `null`. Respostas de erro também contam: o `PostalError` de uma 429 traz o mesmo objeto em `error.rateLimit`. Uma resposta sem os cabeçalhos mantém o último valor conhecido.
+The fields are `limit` and `remaining` (requests per second), and `retryAfter` (seconds) and `resetAt` (Unix timestamp in seconds), which only come on a 429. Whatever did not come is `null`. Error responses count too: the `PostalError` of a 429 carries the same object in `error.rateLimit`. A response without the headers keeps the last known value.
 
 ## CLI
 
-O pacote instala o comando `postal`:
+The package installs the `postal` command:
 
 ```bash
-npx postal-so --help   # ou: npm install -g postal-so
-postal login           # pede a chave e guarda em ~/.config/postal/config.json (modo 0600)
+npx postal-so --help   # or: npm install -g postal-so
+postal login           # asks for the key and stores it in ~/.config/postal/config.json (mode 0600)
 postal whoami
 ```
 
-`POSTAL_API_KEY` tem precedência sobre a chave guardada. Em CI, use só a variável.
+`POSTAL_API_KEY` takes precedence over the stored key. In CI, use only the variable.
 
 ```bash
-postal emails send --from "Minha empresa <voce@seudominio.com.br>" \
-  --to fulano@exemplo.com --subject "Olá" --html "<p>Bem-vindo!</p>"
+postal emails send --from "Acme Store <you@yourdomain.com>" \
+  --to jane@example.com --subject "Hello" --html "<p>Welcome!</p>"
 
-postal emails send --to fulano@exemplo.com --template boas-vindas --var NOME=Fulano
+postal emails send --to jane@example.com --template welcome --var NAME=Jane
 
-postal events send --email fulano@exemplo.com --name signup --props '{"plan":"free"}'
+postal events send --email jane@example.com --name signup --props '{"plan":"free"}'
 
-postal contacts upsert --external-id user_42 --email fulano@exemplo.com --props '{"plan":"pro"}'
+postal contacts upsert --external-id user_42 --email jane@example.com --props '{"plan":"pro"}'
 
 postal domains list
 ```
 
-Acrescente `--json` para saída de máquina (o erro também sai em JSON, no stderr). Códigos de saída: `0` deu certo, `1` erro da API ou de rede, `2` uso incorreto. `postal <comando> --help` mostra as opções, em português.
+Add `--json` for machine output (the error also comes out as JSON, on stderr). Exit codes: `0` worked, `1` API or network error, `2` incorrect usage. `postal <command> --help` shows the options, in Portuguese.
 
-## Skill para agentes de IA
+## Skill for AI agents
 
-O pacote traz uma skill (`skills/postal/SKILL.md`) que ensina Claude Code, Codex e Cursor a integrar o Postal no seu app. Copie a pasta `skills/postal` para `.claude/skills/` (ou para a pasta de skills da sua ferramenta).
+The package ships a skill (`skills/postal/SKILL.md`, also in Portuguese as `SKILL.pt-BR.md`) that teaches Claude Code, Codex and Cursor to integrate Postal into your app. Copy the `skills/postal` folder to `.claude/skills/` (or to your tool's skills folder).
 
-## Desenvolvimento
+## Development
 
 ```bash
 npm install
-npm test   # compila e roda node --test com um servidor HTTP falso local
+npm test   # compiles and runs node --test with a local fake HTTP server
 ```
 
-## Licença
+## License
 
 MIT

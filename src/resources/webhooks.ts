@@ -11,14 +11,14 @@ import type {
 import { Resource, segment } from './base.js'
 
 /**
- * Cadastro dos endpoints de webhook. Para conferir a assinatura de uma entrega, use `verifyWebhook`.
+ * Registration of webhook endpoints. To verify the signature of a delivery, use `verifyWebhook`.
  */
 export class Webhooks extends Resource {
   list(params: ListParams = {}, options?: RequestOptions): Promise<List<Webhook>> {
     return this.http.get('/webhooks', params, options)
   }
 
-  /** Devolve o `signing_secret` (`whsec_...`) usado por `verifyWebhook`. */
+  /** Returns the `signing_secret` (`whsec_...`) used by `verifyWebhook`. */
   create(params: CreateWebhookParams, options?: RequestOptions): Promise<Webhook> {
     return this.http.post('/webhooks', params, { options })
   }
@@ -35,7 +35,7 @@ export class Webhooks extends Resource {
     return this.http.delete(`/webhooks/${segment(id)}`, options)
   }
 
-  /** Gera um segredo novo, que vale na hora. Atualize o seu servidor em seguida. */
+  /** Generates a new secret, valid right away. Update your server afterwards. */
   rotateSecret(id: string, options?: RequestOptions): Promise<Webhook> {
     return this.http.post(`/webhooks/${segment(id)}/signing-secret/rotate`, undefined, { options })
   }

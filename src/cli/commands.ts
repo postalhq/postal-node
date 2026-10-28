@@ -17,14 +17,14 @@ import { configPath, maskKey, removeConfig, writeConfig, type KeySource } from '
 import type { CliContext } from './context.js'
 
 export interface Command {
-  /** Palavras do comando, como `['emails', 'send']`. */
+  /** Words of the command, such as `['emails', 'send']`. */
   path: string[]
   summary: string
-  /** Texto longo da ajuda (opcional). */
+  /** Long help text (optional). */
   details?: string
   options: OptionSpecs
   examples: string[]
-  /** Exige chave de API? Padrão: sim. */
+  /** Needs an API key? Default: yes. */
   needsKey?: boolean
   run(request: CommandRequest): Promise<CommandResult>
 }
@@ -33,16 +33,16 @@ export interface CommandRequest {
   context: CliContext
   values: ParsedValues
   positionals: string[]
-  /** Cliente já autenticado (ausente em `login` e `logout`). */
+  /** Already authenticated client (absent in `login` and `logout`). */
   postal: Postal
   keySource: KeySource | undefined
   apiKey: string | undefined
 }
 
 export interface CommandResult {
-  /** O que `--json` imprime. */
+  /** What `--json` prints. */
   json: unknown
-  /** O que sai no modo normal. */
+  /** What comes out in normal mode. */
   text: string
 }
 

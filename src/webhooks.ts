@@ -8,25 +8,25 @@ export type WebhookHeaders =
   | Iterable<readonly [string, string]>
 
 export interface VerifyWebhookOptions {
-  /** Diferença máxima aceita entre o `webhook-timestamp` e agora, em segundos. Padrão: 300. */
+  /** Maximum difference accepted between the `webhook-timestamp` and now, in seconds. Default: 300. */
   toleranceSeconds?: number
-  /** Relógio, em segundos Unix. Só para testes. */
+  /** Clock, in Unix seconds. For tests only. */
   now?: number
 }
 
 /**
- * Confere a assinatura de uma entrega de webhook do Postal (Standard Webhooks) e devolve o evento.
+ * Verifies the signature of a Postal webhook delivery (Standard Webhooks) and returns the event.
  *
- * A assinatura é `base64(HMAC-SHA256(chave, "{webhook-id}.{webhook-timestamp}.{corpo}"))`, enviada no
- * cabeçalho `webhook-signature` como `v1,<base64>` (os mesmos valores vêm em `svix-id`, `svix-timestamp`
- * e `svix-signature`). A chave é o `signing_secret` (`whsec_...`) sem o prefixo, decodificado de Base64.
+ * The signature is `base64(HMAC-SHA256(key, "{webhook-id}.{webhook-timestamp}.{body}"))`, sent in the
+ * `webhook-signature` header as `v1,<base64>` (the same values come in `svix-id`, `svix-timestamp`
+ * and `svix-signature`). The key is the `signing_secret` (`whsec_...`) without the prefix, Base64-decoded.
  *
- * Passe o corpo **cru**, exatamente como chegou: se o framework já fez o parse do JSON, a assinatura
- * não vai bater. Lança `PostalWebhookVerificationError` se algo não conferir.
+ * Pass the **raw** body, exactly as it arrived: if the framework already parsed the JSON, the signature
+ * will not match. Throws `PostalWebhookVerificationError` if anything does not check out.
  *
- * @param payload Corpo cru da requisição.
- * @param headers Cabeçalhos da requisição (objeto do Node, `Headers` ou lista de pares).
- * @param secret `signing_secret` do webhook, como `whsec_...`.
+ * @param payload Raw body of the request.
+ * @param headers Request headers (a Node object, `Headers` or a list of pairs).
+ * @param secret The webhook's `signing_secret`, as `whsec_...`.
  *
  * @example
  * app.post('/webhooks/postal', express.raw({ type: 'application/json' }), (req, res) => {
@@ -48,23 +48,23 @@ export function verifyWebhook<T = Record<string, Json>>(
 
   if (!id || !timestamp || !signatures) {
     throw new PostalWebhookVerificationError(
-      'Faltam os cabeçalhos webhook-id, webhook-timestamp ou webhook-signature.',
+      'The webhook-id, webhook-timestamp or webhook-signature headers are missing.',
     )
   }
 
   if (!/^\d+$/.test(timestamp)) {
-    throw new PostalWebhookVerificationError('O webhook-timestamp é inválido.')
+    throw new PostalWebhookVerificationError('The webhook-timestamp is invalid.')
   }
 
   const tolerance = options.toleranceSeconds ?? 300
   const now = options.now ?? Math.floor(Date.now() / 1000)
 
   if (Math.abs(now - Number(timestamp)) > tolerance) {
-    throw new PostalWebhookVerificationError('O webhook-timestamp está fora da tolerância (mensagem antiga ou repetida).')
+    throw new PostalWebhookVerificationError('The webhook-timestamp is outside the tolerance (old or repeated message).')
   }
 
   if (!secret) {
-    throw new PostalWebhookVerificationError('Informe o signing_secret do webhook (whsec_...).')
+    throw new PostalWebhookVerificationError('Provide the webhook signing_secret (whsec_...).')
   }
 
   const key = Buffer.from(secret.replace(/^whsec_/, ''), 'base64')
@@ -86,13 +86,13 @@ export function verifyWebhook<T = Record<string, Json>>(
     })
 
   if (!matches) {
-    throw new PostalWebhookVerificationError('A assinatura do webhook não confere.')
+    throw new PostalWebhookVerificationError('The webhook signature does not match.')
   }
 
   try {
     return JSON.parse(body) as WebhookEvent<T>
   } catch {
-    throw new PostalWebhookVerificationError('O corpo do webhook não é um JSON válido.')
+    throw new PostalWebhookVerificationError('The webhook body is not valid JSON.')
   }
 }
 

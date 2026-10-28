@@ -12,7 +12,7 @@ const GLOBAL_OPTIONS: OptionSpecs = {
 }
 
 /**
- * Executa o CLI e devolve o código de saída: 0 deu certo, 1 erro da API ou de rede, 2 uso incorreto.
+ * Runs the CLI and returns the exit code: 0 worked, 1 API or network error, 2 incorrect usage.
  */
 export async function run(argv: string[], context: CliContext): Promise<number> {
   const [first] = argv

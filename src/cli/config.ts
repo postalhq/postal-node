@@ -9,7 +9,7 @@ export interface StoredConfig {
 export type KeySource = 'env' | 'config'
 
 /**
- * Pasta de configuração: `$XDG_CONFIG_HOME/postal` ou `~/.config/postal`.
+ * Configuration folder: `$XDG_CONFIG_HOME/postal` or `~/.config/postal`.
  */
 export function configDirectory(env: Record<string, string | undefined>): string {
   const base = env['XDG_CONFIG_HOME'] ? env['XDG_CONFIG_HOME'] : join(env['HOME'] || homedir(), '.config')
@@ -32,7 +32,7 @@ export async function readConfig(env: Record<string, string | undefined>): Promi
 }
 
 /**
- * Grava a chave em `config.json` com modo 0600 (pasta 0700).
+ * Writes the key to `config.json` with mode 0600 (folder 0700).
  */
 export async function writeConfig(env: Record<string, string | undefined>, config: StoredConfig): Promise<string> {
   const path = configPath(env)
@@ -59,7 +59,7 @@ export async function removeConfig(env: Record<string, string | undefined>): Pro
 }
 
 /**
- * A chave a usar: `POSTAL_API_KEY` tem precedência sobre o arquivo.
+ * The key to use: `POSTAL_API_KEY` takes precedence over the file.
  */
 export async function resolveApiKey(
   env: Record<string, string | undefined>,

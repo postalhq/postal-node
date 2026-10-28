@@ -16,20 +16,20 @@ import type {
 import { paginate, Resource, segment } from './base.js'
 
 /**
- * Onde a documentação diz "ID do contato", vale também o e-mail ou `external_id:<id>`.
+ * Where the documentation says "contact ID", the email or `external_id:<id>` works too.
  */
 export class Contacts extends Resource {
-  /** Cria um contato (`POST /contacts`). Falha se o e-mail ou o `external_id` já existirem. */
+  /** Creates a contact (`POST /contacts`). Fails if the email or the `external_id` already exist. */
   create(params: CreateContactParams, options?: RequestOptions): Promise<ObjectRef> {
     return this.http.post('/contacts', params, { options })
   }
 
   /**
-   * Cria ou atualiza um contato, procurando por `id`, depois `external_id`, depois `email`
-   * (`POST /contacts/batch` com um item). Repetir a chamada é seguro.
+   * Creates or updates a contact, looking it up by `id`, then `external_id`, then `email`
+   * (`POST /contacts/batch` with one item). Repeating the call is safe.
    *
    * @example
-   * await postal.contacts.upsert({ external_id: 'user_42', email: 'fulano@exemplo.com', first_name: 'Fulano' })
+   * await postal.contacts.upsert({ external_id: 'user_42', email: 'jane@example.com', first_name: 'Jane' })
    */
   async upsert(params: UpsertContactParams, options?: RequestOptions): Promise<UpsertContactResult> {
     const response = await this.http.post<ContactBatchResponse>(
@@ -40,65 +40,65 @@ export class Contacts extends Resource {
     const result = response.results?.[0]
 
     if (result === undefined) {
-      throw new PostalError(502, 'invalid_response', 'O Postal não devolveu o resultado do contato.')
+      throw new PostalError(502, 'invalid_response', 'Postal did not return the contact result.')
     }
 
     if (result.status === 'failed') {
-      throw new PostalError(422, 'validation_error', result.error ?? 'Não foi possível salvar o contato.')
+      throw new PostalError(422, 'validation_error', result.error ?? 'The contact could not be saved.')
     }
 
     return result as UpsertContactResult
   }
 
   /**
-   * Cria ou atualiza vários contatos de uma vez (`POST /contacts/batch`). Até 1.000 itens a resposta traz
-   * um resultado por item (um item com erro não derruba os outros); acima disso o lote vai para a fila.
+   * Creates or updates several contacts at once (`POST /contacts/batch`). Up to 1,000 items, the response carries
+   * one result per item (an item with an error does not bring down the others); above that the batch goes to the queue.
    */
   batch(contacts: UpsertContactParams[], options?: RequestOptions): Promise<ContactBatchResponse> {
     return this.http.post('/contacts/batch', { contacts }, { options, idempotent: true })
   }
 
-  /** Um contato pelo ID, e-mail ou `external_id:<id>` (`GET /contacts/{id}`). */
+  /** One contact by ID, email or `external_id:<id>` (`GET /contacts/{id}`). */
   get(idOrEmail: string, options?: RequestOptions): Promise<Contact> {
     return this.http.get(`/contacts/${segment(idOrEmail)}`, undefined, options)
   }
 
-  /** Um contato pelo `external_id` (a ID dele no seu sistema). */
+  /** One contact by `external_id` (its ID in your system). */
   getByExternalId(externalId: string, options?: RequestOptions): Promise<Contact> {
     return this.get(`external_id:${externalId}`, options)
   }
 
-  /** Atualiza só os campos enviados (`PATCH /contacts/{id}`). */
+  /** Updates only the fields sent (`PATCH /contacts/{id}`). */
   update(idOrEmail: string, params: UpdateContactParams, options?: RequestOptions): Promise<ObjectRef> {
     return this.http.patch(`/contacts/${segment(idOrEmail)}`, params, { options })
   }
 
-  /** Remove o contato da audiência (`DELETE /contacts/{id}`). Para só parar de enviar, use `unsubscribed: true`. */
+  /** Removes the contact from the audience (`DELETE /contacts/{id}`). To just stop sending, use `unsubscribed: true`. */
   delete(idOrEmail: string, options?: RequestOptions): Promise<Deleted> {
     return this.http.delete(`/contacts/${segment(idOrEmail)}`, options)
   }
 
-  /** Uma página de contatos, do mais recente para o mais antigo (`GET /contacts`). */
+  /** A page of contacts, newest to oldest (`GET /contacts`). */
   list(params: ListContactsParams = {}, options?: RequestOptions): Promise<List<Contact>> {
     return this.http.get('/contacts', params, options)
   }
 
-  /** Percorre todos os contatos que batem com o filtro, página a página. */
+  /** Walks through all contacts matching the filter, page by page. */
   iterate(params: Omit<ListContactsParams, 'limit'> = {}): AsyncGenerator<Contact, void, undefined> {
     return paginate((page) => this.list(page), params)
   }
 
-  /** Coloca o contato num segmento estático (`POST /contacts/{id}/segments/{segment_id}`). */
+  /** Puts the contact in a static segment (`POST /contacts/{id}/segments/{segment_id}`). */
   addToSegment(idOrEmail: string, segmentId: string, options?: RequestOptions): Promise<unknown> {
     return this.http.post(`/contacts/${segment(idOrEmail)}/segments/${segment(segmentId)}`, undefined, { options })
   }
 
-  /** Tira o contato de um segmento estático (`DELETE /contacts/{id}/segments/{segment_id}`). */
+  /** Takes the contact out of a static segment (`DELETE /contacts/{id}/segments/{segment_id}`). */
   removeFromSegment(idOrEmail: string, segmentId: string, options?: RequestOptions): Promise<unknown> {
     return this.http.delete(`/contacts/${segment(idOrEmail)}/segments/${segment(segmentId)}`, options)
   }
 
-  /** Registra a escolha do contato em tópicos (`PATCH /contacts/{id}/topics`). */
+  /** Records the contact's choice on topics (`PATCH /contacts/{id}/topics`). */
   updateTopics(idOrEmail: string, topics: ContactTopicChoice[], options?: RequestOptions): Promise<ObjectRef> {
     return this.http.patch(`/contacts/${segment(idOrEmail)}/topics`, { topics }, { options })
   }

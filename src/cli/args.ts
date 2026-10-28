@@ -7,9 +7,9 @@ export interface OptionSpec {
   type: 'string' | 'boolean'
   multiple?: boolean
   short?: string
-  /** Texto de ajuda (português). */
+  /** Help text (Portuguese). */
   description: string
-  /** Nome do valor na ajuda, como `EMAIL`. */
+  /** Name of the value in the help, such as `EMAIL`. */
   value?: string
 }
 
@@ -18,7 +18,7 @@ export type OptionSpecs = Record<string, OptionSpec>
 export type ParsedValues = Record<string, string | boolean | (string | boolean)[] | undefined>
 
 /**
- * Lê as opções de um comando, com mensagens de erro em português.
+ * Reads the options of a command, with error messages in Portuguese.
  */
 export function parseOptions(
   args: string[],
@@ -85,7 +85,7 @@ export function flagOption(values: ParsedValues, name: string): boolean {
 }
 
 /**
- * Divide `a@x.com, "Fulano, Jr" <b@y.com>` por vírgulas fora de aspas e de `<...>`.
+ * Splits `a@x.com, "Jane, Jr" <b@y.com>` by commas outside quotes and outside `<...>`.
  */
 export function splitAddresses(values: string[]): string[] {
   const result: string[] = []
@@ -119,7 +119,7 @@ export function splitAddresses(values: string[]): string[] {
 }
 
 /**
- * Um valor que começa com `@` é o caminho de um arquivo (`--html @email.html`).
+ * A value that starts with `@` is a file path (`--html @email.html`).
  */
 export async function textOrFile(value: string | undefined, name: string): Promise<string | undefined> {
   if (value === undefined || !value.startsWith('@')) {
@@ -152,7 +152,7 @@ export function parseJsonObject(value: string | undefined, name: string): Record
 }
 
 /**
- * `NOME=valor` repetido vira `{ NOME: 'valor' }`.
+ * A repeated `NAME=value` becomes `{ NAME: 'value' }`.
  */
 export function parsePairs(values: string[], name: string): Record<string, string> {
   const result: Record<string, string> = {}

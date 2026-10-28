@@ -3,8 +3,8 @@ import { createServer } from 'node:http'
 import { connect } from 'node:net'
 
 /**
- * Servidor HTTP falso: guarda as requisições e responde com o que o teste programar.
- * `handler(request)` devolve `{ status, body, headers }` (body é objeto JSON ou texto).
+ * Fake HTTP server: keeps the requests and answers with whatever the test sets up.
+ * `handler(request)` returns `{ status, body, headers }` (body is a JSON object or text).
  */
 export async function fakeServer(handler) {
   const requests = []
@@ -53,9 +53,9 @@ export function apiError(status, name, message, headers = {}) {
 }
 
 /**
- * Um endereço local onde conectar fica pendente (a conexão nunca completa), para testar o prazo de conexão.
- * Um processo filho abre a porta com fila de 1 e trava o laço de eventos sem nunca aceitar; depois que
- * a fila enche, o kernel descarta os SYN seguintes. Devolve `null` se o ambiente não reproduzir isso.
+ * A local address where connecting hangs (the connection never completes), to test the connection deadline.
+ * A child process opens the port with a backlog of 1 and blocks the event loop without ever accepting; once
+ * the queue fills, the kernel drops the following SYNs. Returns `null` if the environment does not reproduce this.
  */
 export async function hangingServer() {
   const child = spawn(

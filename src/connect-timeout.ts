@@ -1,13 +1,13 @@
 import { subscribe } from 'node:diagnostics_channel'
 
 /**
- * O `fetch` não tem um tempo limite só para a conexão. No Node, o `fetch` global usa o undici, que avisa pelo
- * `diagnostics_channel` quando a conexão está pronta e os cabeçalhos da requisição vão ser enviados
- * (`undici:client:sendHeaders`). O prazo de conexão é um temporizador iniciado antes do `fetch` e cancelado
- * nesse aviso; se estourar, a tentativa é abortada.
+ * `fetch` has no timeout just for the connection. In Node, the global `fetch` uses undici, which announces through
+ * `diagnostics_channel` when the connection is ready and the request headers are about to be sent
+ * (`undici:client:sendHeaders`). The connection deadline is a timer started before `fetch` and canceled
+ * at that notice; if it runs out, the attempt is aborted.
  *
- * Só vale para o `fetch` global do Node (`process.versions.undici`). Com um `fetch` próprio, ou em runtimes
- * sem undici, não há como saber quando a conexão abriu e o prazo não é aplicado (continua valendo `timeout`).
+ * It only applies to Node's global `fetch` (`process.versions.undici`). With your own `fetch`, or on runtimes
+ * without undici, there is no way to know when the connection opened and the deadline is not applied (`timeout` still counts).
  */
 interface Pending {
   origin: string
@@ -40,15 +40,15 @@ function onSendHeaders(message: unknown): void {
 }
 
 /**
- * Diz se o runtime avisa quando a conexão abre (o `fetch` global do Node com undici).
+ * Tells whether the runtime announces when the connection opens (Node's global `fetch` with undici).
  */
 export function canWatchConnection(): boolean {
   return typeof process !== 'undefined' && typeof process.versions?.['undici'] === 'string'
 }
 
 /**
- * Começa a contar o prazo de conexão de uma requisição. Chame `onTimeout` se a conexão não abrir em
- * `milliseconds`. Devolve a função que encerra a vigilância (chame-a sempre, no `finally`).
+ * Starts counting the connection deadline of a request. Call `onTimeout` if the connection does not open within
+ * `milliseconds`. Returns the function that ends the watch (always call it, in the `finally`).
  */
 export function watchConnection(
   url: string,

@@ -22,7 +22,7 @@ afterEach(async () => {
 })
 
 /**
- * Roda o CLI em memória, com HOME temporário e a API falsa.
+ * Runs the CLI in memory, with a temporary HOME and the fake API.
  */
 async function cli(args, { env = {}, secret = '', handler } = {}) {
   if (handler) {
@@ -44,8 +44,8 @@ async function cli(args, { env = {}, secret = '', handler } = {}) {
   return { code, stdout: out.join(''), stderr: err.join('') }
 }
 
-describe('ajuda', () => {
-  it('--help lista os comandos em português', async () => {
+describe('help', () => {
+  it('--help lists the commands in Portuguese', async () => {
     const { code, stdout } = await cli(['--help'])
 
     assert.equal(code, 0)
@@ -54,7 +54,7 @@ describe('ajuda', () => {
     assert.match(stdout, /POSTAL_API_KEY/)
   })
 
-  it('ajuda de um comando traz opções e exemplos', async () => {
+  it('a command\'s help shows options and examples', async () => {
     const { code, stdout } = await cli(['emails', 'send', '--help'])
 
     assert.equal(code, 0)
@@ -67,21 +67,21 @@ describe('ajuda', () => {
     assert.equal((await cli(['--version'])).stdout, '9.9.9\n')
   })
 
-  it('comando desconhecido sai com 2', async () => {
+  it('an unknown command exits with 2', async () => {
     const { code, stderr } = await cli(['foo'])
 
     assert.equal(code, 2)
     assert.match(stderr, /Comando desconhecido/)
   })
 
-  it('opção desconhecida sai com 2 e explica', async () => {
+  it('an unknown option exits with 2 and explains', async () => {
     const { code, stderr } = await cli(['emails', 'send', '--nada'], { env: { POSTAL_API_KEY: 'ps_x' } })
 
     assert.equal(code, 2)
     assert.match(stderr, /Opção desconhecida: --nada/)
   })
 
-  it('grupo sem subcomando mostra a ajuda do grupo', async () => {
+  it('a group without a subcommand shows the group\'s help', async () => {
     const { code, stdout } = await cli(['emails'])
 
     assert.equal(code, 2)
@@ -90,8 +90,8 @@ describe('ajuda', () => {
   })
 })
 
-describe('login, logout e whoami', () => {
-  it('login grava a chave com modo 0600 depois de conferir com a API', async () => {
+describe('login, logout and whoami', () => {
+  it('login stores the key with mode 0600 after checking it with the API', async () => {
     const { code, stdout } = await cli(['login'], {
       secret: 'ps_chave_de_teste_123456',
       handler: () => ({ body: { object: 'usage' } }),
@@ -106,7 +106,7 @@ describe('login, logout e whoami', () => {
     assert.equal(server.requests[0].headers.authorization, 'Bearer ps_chave_de_teste_123456')
   })
 
-  it('login recusa chave inválida e não grava nada', async () => {
+  it('login refuses an invalid key and stores nothing', async () => {
     const { code, stderr } = await cli(['login'], {
       secret: 'ps_errada',
       handler: () => apiError(403, 'invalid_api_key', 'API key is invalid'),
@@ -117,7 +117,7 @@ describe('login, logout e whoami', () => {
     await assert.rejects(stat(join(home, '.config', 'postal', 'config.json')))
   })
 
-  it('login aceita chave só de envio', async () => {
+  it('login accepts a sending-only key', async () => {
     const { code, stdout } = await cli(['login'], {
       secret: 'ps_so_envio_123456',
       handler: () => apiError(401, 'restricted_api_key', 'restricted'),
@@ -127,14 +127,14 @@ describe('login, logout e whoami', () => {
     assert.match(stdout, /só de envio/)
   })
 
-  it('login recusa texto que não parece uma chave', async () => {
+  it('login refuses text that does not look like a key', async () => {
     const { code, stderr } = await cli(['login'], { secret: 'abc' })
 
     assert.equal(code, 2)
     assert.match(stderr, /começa com "ps_"/)
   })
 
-  it('POSTAL_API_KEY tem precedência sobre o arquivo', async () => {
+  it('POSTAL_API_KEY takes precedence over the file', async () => {
     await cli(['login', '--no-verify'], { secret: 'ps_do_arquivo_123456' })
     await cli(['domains', 'list'], {
       env: { POSTAL_API_KEY: 'ps_da_variavel_123456' },
@@ -144,28 +144,28 @@ describe('login, logout e whoami', () => {
     assert.equal(server.requests[0].headers.authorization, 'Bearer ps_da_variavel_123456')
   })
 
-  it('usa a chave do arquivo quando não há variável', async () => {
+  it('uses the key from the file when there is no variable', async () => {
     await cli(['login', '--no-verify'], { secret: 'ps_do_arquivo_123456' })
     await cli(['domains', 'list'], { handler: () => ({ body: { object: 'list', has_more: false, data: [] } }) })
 
     assert.equal(server.requests[0].headers.authorization, 'Bearer ps_do_arquivo_123456')
   })
 
-  it('sem chave, explica como entrar', async () => {
+  it('without a key, explains how to sign in', async () => {
     const { code, stderr } = await cli(['domains', 'list'])
 
     assert.equal(code, 1)
     assert.match(stderr, /postal login/)
   })
 
-  it('logout apaga o arquivo', async () => {
+  it('logout deletes the file', async () => {
     await cli(['login', '--no-verify'], { secret: 'ps_do_arquivo_123456' })
 
     assert.match((await cli(['logout'])).stdout, /apagada/)
     assert.match((await cli(['logout'])).stdout, /Não havia/)
   })
 
-  it('whoami mostra plano e chave mascarada', async () => {
+  it('whoami shows the plan and the masked key', async () => {
     const { code, stdout } = await cli(['whoami'], {
       env: { POSTAL_API_KEY: 'ps_4Fq9xLmT2vKp8sWd1Yc5' },
       handler: () => ({
@@ -186,7 +186,7 @@ describe('login, logout e whoami', () => {
     assert.doesNotMatch(stdout, /4Fq9xLmT2vKp8sWd1Yc5/)
   })
 
-  it('whoami com chave só de envio diz que ela é válida', async () => {
+  it('whoami with a sending-only key says it is valid', async () => {
     const { code, stdout } = await cli(['whoami', '--json'], {
       env: { POSTAL_API_KEY: 'ps_so_envio_123456' },
       handler: () => apiError(401, 'restricted_api_key', 'restricted'),
@@ -200,7 +200,7 @@ describe('login, logout e whoami', () => {
 describe('emails send', () => {
   const env = { POSTAL_API_KEY: 'ps_x_123456789' }
 
-  it('envia HTML e imprime o ID', async () => {
+  it('sends HTML and prints the ID', async () => {
     const { code, stdout } = await cli(
       ['emails', 'send', '--from', 'Minha empresa <voce@seudominio.com.br>', '--to', 'fulano@exemplo.com', '--subject', 'Olá', '--html', '<p>Oi</p>'],
       { env, handler: () => ({ body: { id: 'em_1' } }) },
@@ -216,7 +216,7 @@ describe('emails send', () => {
     })
   })
 
-  it('lê --text de arquivo e separa destinatários por vírgula sem quebrar nomes', async () => {
+  it('reads --text from a file and splits recipients by comma without breaking names', async () => {
     const file = join(home, 'mensagem.txt')
 
     await writeFile(file, 'Olá do arquivo')
@@ -230,7 +230,7 @@ describe('emails send', () => {
     assert.deepEqual(server.requests[0].body.to, ['a@exemplo.com', '"Silva, Fulano" <b@exemplo.com>', 'c@exemplo.com'])
   })
 
-  it('envia com template e variáveis', async () => {
+  it('sends with a template and variables', async () => {
     await cli(
       ['emails', 'send', '--to', 'fulano@exemplo.com', '--template', 'boas-vindas', '--var', 'NOME=Fulano', '--vars', '{"PLANO":"pro"}', '--idempotency-key', 'welcome-1'],
       { env, handler: () => ({ body: { id: 'em_3' } }) },
@@ -240,7 +240,7 @@ describe('emails send', () => {
     assert.equal(server.requests[0].headers['idempotency-key'], 'welcome-1')
   })
 
-  it('valida as combinações de opções', async () => {
+  it('validates the combinations of options', async () => {
     assert.match((await cli(['emails', 'send', '--from', 'a@b.com', '--subject', 's', '--html', 'x'], { env })).stderr, /--to/)
     assert.match((await cli(['emails', 'send', '--to', 'a@b.com', '--from', 'a@b.com', '--subject', 's'], { env })).stderr, /--html, --text ou --template/)
     assert.match((await cli(['emails', 'send', '--to', 'a@b.com', '--html', 'x'], { env })).stderr, /--from e --subject/)
@@ -248,7 +248,7 @@ describe('emails send', () => {
     assert.equal((await cli(['emails', 'send', '--to', 'a@b.com', '--template', 't', '--var', 'semigual'], { env })).code, 2)
   })
 
-  it('erro da API sai com 1 e mostra name e message', async () => {
+  it('an API error exits with 1 and shows name and message', async () => {
     const { code, stderr } = await cli(
       ['emails', 'send', '--from', 'a@b.com', '--to', 'c@d.com', '--subject', 's', '--text', 't'],
       { env, handler: () => apiError(403, 'validation_error', 'The sending domain is not verified.') },
@@ -258,7 +258,7 @@ describe('emails send', () => {
     assert.match(stderr, /Erro \(validation_error, 403\): The sending domain is not verified\./)
   })
 
-  it('--json imprime a resposta e o erro como JSON', async () => {
+  it('--json prints the response and the error as JSON', async () => {
     const ok = await cli(['emails', 'send', '--from', 'a@b.com', '--to', 'c@d.com', '--subject', 's', '--text', 't', '--json'], { env, handler: () => ({ body: { id: 'em_9' } }) })
     const bad = await cli(['emails', 'send', '--from', 'a@b.com', '--to', 'c@d.com', '--subject', 's', '--text', 't', '--json'], { env, handler: () => apiError(422, 'validation_error', 'x') })
 
@@ -268,7 +268,7 @@ describe('emails send', () => {
   })
 })
 
-describe('events, contacts e domains', () => {
+describe('events, contacts and domains', () => {
   const env = { POSTAL_API_KEY: 'ps_x_123456789' }
 
   it('events send', async () => {
@@ -287,7 +287,7 @@ describe('events, contacts e domains', () => {
     })
   })
 
-  it('events send exige --name e JSON válido', async () => {
+  it('events send requires --name and valid JSON', async () => {
     assert.equal((await cli(['events', 'send', '--email', 'a@b.com'], { env })).code, 2)
     assert.match((await cli(['events', 'send', '--name', 'x', '--props', 'não é json'], { env })).stderr, /objeto JSON/)
   })
@@ -308,11 +308,11 @@ describe('events, contacts e domains', () => {
     assert.deepEqual(server.requests[0].body.contacts[0], { email: 'fulano@exemplo.com', external_id: 'user_42', first_name: 'Fulano', properties: { plan: 'pro' } })
   })
 
-  it('contacts upsert sem e-mail nem external_id é erro de uso', async () => {
+  it('contacts upsert without email or external_id is a usage error', async () => {
     assert.equal((await cli(['contacts', 'upsert', '--first-name', 'X'], { env })).code, 2)
   })
 
-  it('domains list imprime uma tabela e --json imprime a lista', async () => {
+  it('domains list prints a table and --json prints the list', async () => {
     const body = { object: 'list', has_more: false, data: [{ id: 'd1', name: 'seudominio.com.br', status: 'verified', region: 'sa-east-1' }] }
     const text = await cli(['domains', 'list'], { env, handler: () => ({ body }) })
     const json = await cli(['domains', 'list', '--json'], { env })
@@ -323,15 +323,15 @@ describe('events, contacts e domains', () => {
   })
 })
 
-describe('binário', () => {
-  it('dist/cli.js roda com --help', () => {
+describe('binary', () => {
+  it('dist/cli.js runs with --help', () => {
     const result = spawnSync(process.execPath, [fileURLToPath(new URL('../dist/cli.js', import.meta.url)), '--help'], { encoding: 'utf8' })
 
     assert.equal(result.status, 0)
     assert.match(result.stdout, /Uso: postal/)
   })
 
-  it('lê a chave da entrada padrão em "postal login --no-verify"', async () => {
+  it('reads the key from standard input in "postal login --no-verify"', async () => {
     const result = spawnSync(process.execPath, [fileURLToPath(new URL('../dist/cli.js', import.meta.url)), 'login', '--no-verify'], {
       encoding: 'utf8',
       input: 'ps_pela_entrada_123456\n',

@@ -8,32 +8,32 @@ export const VERSION = '0.1.0'
 export type Fetch = (input: string, init?: RequestInit) => Promise<Response>
 
 export interface ClientOptions {
-  /** Chave de API (`ps_...`). Padrão: a variável de ambiente `POSTAL_API_KEY`. */
+  /** API key (`ps_...`). Default: the `POSTAL_API_KEY` environment variable. */
   apiKey?: string
-  /** URL base da API. Padrão: `https://api.postal.so`. */
+  /** Base URL of the API. Default: `https://api.postal.so`. */
   baseUrl?: string
-  /** Tentativas extras em 429 e 5xx. Padrão: 2. Use 0 para desligar. */
+  /** Extra attempts on 429 and 5xx. Default: 2. Use 0 to turn off. */
   maxRetries?: number
-  /** Tempo máximo de cada tentativa, do início ao fim, em milissegundos. Padrão: 30000. */
+  /** Maximum time of each attempt, from start to finish, in milliseconds. Default: 30000. */
   timeout?: number
   /**
-   * Tempo máximo só para abrir a conexão (DNS, TCP e TLS), em milissegundos. Padrão: 5000; 0 desliga.
-   * Só é aplicado com o `fetch` global do Node; com um `fetch` próprio vale apenas `timeout`.
-   * Com a API fora do ar, uma chamada bloqueia cerca de `(maxRetries + 1) × connectTimeout` mais as esperas.
+   * Maximum time just to open the connection (DNS, TCP and TLS), in milliseconds. Default: 5000; 0 turns it off.
+   * Only applied with Node's global `fetch`; with your own `fetch` only `timeout` counts.
+   * With the API down, a call blocks about `(maxRetries + 1) × connectTimeout` plus the waits.
    */
   connectTimeout?: number
-  /** Espera base entre tentativas, em milissegundos (dobra a cada tentativa). Padrão: 500. */
+  /** Base wait between attempts, in milliseconds (doubles on every attempt). Default: 500. */
   retryDelay?: number
-  /** Implementação de `fetch`. Padrão: o `fetch` global. */
+  /** `fetch` implementation. Default: the global `fetch`. */
   fetch?: Fetch
-  /** Texto acrescentado ao `User-Agent`. */
+  /** Text appended to the `User-Agent`. */
   userAgent?: string
 }
 
 export interface RequestOptions {
-  /** Chave de idempotência (1 a 256 caracteres) de `POST /emails`, `/emails/batch` e `/events`. */
+  /** Idempotency key (1 to 256 characters) of `POST /emails`, `/emails/batch` and `/events`. */
   idempotencyKey?: string
-  /** Cancela a requisição. */
+  /** Cancels the request. */
   signal?: AbortSignal
 }
 
@@ -45,17 +45,17 @@ interface InternalRequest {
   query?: object
   body?: unknown
   options?: RequestOptions
-  /** Marca POST/PATCH que podem ser repetidos sem efeito duplicado (upsert). */
+  /** Marks POST/PATCH calls that can be repeated without a duplicate effect (upsert). */
   idempotent?: boolean
-  /** Gera uma chave de idempotência para o envio, reaproveitada nas tentativas. */
+  /** Generates an idempotency key for the send, reused across attempts. */
   autoIdempotency?: boolean
 }
 
 const MAX_RETRY_DELAY_MS = 30_000
 
 /**
- * Cliente HTTP mínimo: autenticação, JSON, erros tipados e retentativas.
- * Usado por todos os recursos; não faz parte da API pública.
+ * Minimal HTTP client: authentication, JSON, typed errors and retries.
+ * Used by all resources; not part of the public API.
  */
 export class HttpClient {
   readonly baseUrl: string
@@ -76,7 +76,7 @@ export class HttpClient {
       throw new PostalError(
         0,
         'missing_api_key',
-        'Informe a chave de API: new Postal("ps_...") ou a variável de ambiente POSTAL_API_KEY.',
+        'Provide the API key: new Postal("ps_...") or the POSTAL_API_KEY environment variable.',
       )
     }
 
@@ -91,7 +91,7 @@ export class HttpClient {
     this.userAgent = `postal-so-node/${VERSION}${options.userAgent ? ` ${options.userAgent}` : ''}`
   }
 
-  /** O limite de requisições da última resposta que o trouxe (ver `Postal.rateLimit`). */
+  /** The request limit of the last response that carried it (see `Postal.rateLimit`). */
   get rateLimit(): RateLimit | null {
     return this.lastRateLimit
   }
@@ -113,7 +113,7 @@ export class HttpClient {
   }
 
   /**
-   * Devolve o corpo como texto (para `GET /emails/{id}/raw`).
+   * Returns the body as text (for `GET /emails/{id}/raw`).
    */
   async getText(path: string, options?: RequestOptions): Promise<string> {
     const { text } = await this.send({ method: 'GET', path, options })
@@ -131,7 +131,7 @@ export class HttpClient {
     try {
       return JSON.parse(text) as T
     } catch {
-      throw new PostalError(status, 'invalid_response', 'A resposta do Postal não é um JSON válido.')
+      throw new PostalError(status, 'invalid_response', "Postal's response is not valid JSON.")
     }
   }
 
@@ -166,7 +166,7 @@ export class HttpClient {
       headers['Idempotency-Key'] = idempotencyKey
     }
 
-    // Repetir um POST sem chave de idempotência após um 5xx ou uma queda de rede poderia duplicar o efeito.
+    // Repeating a POST without an idempotency key after a 5xx or a network drop could duplicate the effect.
     const retriesServerErrors =
       request.method === 'GET' ||
       request.method === 'DELETE' ||
@@ -180,7 +180,7 @@ export class HttpClient {
       const outcome = await this.attempt(url, request.method, headers, body, request.options?.signal)
 
       if ('canceled' in outcome) {
-        throw new PostalNetworkError('network_error', 'A requisição foi cancelada.', outcome.canceled)
+        throw new PostalNetworkError('network_error', 'The request was canceled.', outcome.canceled)
       }
 
       if ('error' in outcome) {
@@ -213,7 +213,7 @@ export class HttpClient {
   }
 
   /**
-   * Uma tentativa, com o tempo limite cobrindo também a leitura do corpo.
+   * One attempt, with the timeout also covering the reading of the body.
    */
   private async attempt(
     url: string,
@@ -267,7 +267,7 @@ export class HttpClient {
         return {
           error: new PostalNetworkError(
             'connect_timeout',
-            `Tempo esgotado ao conectar ao Postal (connectTimeout de ${this.connectTimeout} ms).`,
+            `Timed out connecting to Postal (connectTimeout of ${this.connectTimeout} ms).`,
             cause,
           ),
         }
@@ -275,8 +275,8 @@ export class HttpClient {
 
       return {
         error: timedOut
-          ? new PostalNetworkError('timeout', `O Postal não respondeu em ${this.timeout} ms.`, cause)
-          : new PostalNetworkError('network_error', `Não foi possível falar com o Postal: ${describe(cause)}`, cause),
+          ? new PostalNetworkError('timeout', `Postal did not answer within ${this.timeout} ms.`, cause)
+          : new PostalNetworkError('network_error', `Could not reach Postal: ${describe(cause)}`, cause),
       }
     } finally {
       clearTimeout(timer)
@@ -293,7 +293,7 @@ export class HttpClient {
 }
 
 /**
- * 429 que repetir não adianta: a cota do plano acabou.
+ * A 429 that retrying will not fix: the plan quota ran out.
  */
 const NON_RETRYABLE_429 = ['daily_quota_exceeded', 'monthly_quota_exceeded', 'ai_credits_exhausted']
 
@@ -309,13 +309,13 @@ function toError(status: number, statusText: string, headers: Headers, text: str
       body = parsed as PostalErrorBody
     }
   } catch {
-    // corpo que não é JSON (proxy, página de erro): cai no erro genérico abaixo
+    // a body that is not JSON (proxy, error page): falls to the generic error below
   }
 
   return new PostalError(
     status,
     body?.name ?? (status >= 500 ? 'internal_server_error' : 'unexpected_error'),
-    body?.message ?? (statusText || `Erro ${status} do Postal.`),
+    body?.message ?? (statusText || `Postal error ${status}.`),
     {
       ...(retryAfter !== undefined ? { retryAfter } : {}),
       ...(body !== undefined ? { body } : {}),

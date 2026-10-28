@@ -11,25 +11,25 @@ afterEach(async () => {
 })
 
 describe('otpTokenHeader', () => {
-  it('monta o valor do exemplo do draft', () => {
+  it('builds the value from the draft\'s example', () => {
     assert.equal(otpTokenHeader('123456', 'https://example.com'), '"123456"; origin="https://example.com"')
   })
 
-  it('escapa só a barra invertida e as aspas', () => {
+  it('escapes only the backslash and the double quote', () => {
     assert.equal(otpTokenHeader('a"b\\c d~', 'https://example.com:8443'), '"a\\"b\\\\c d~"; origin="https://example.com:8443"')
   })
 
-  it('aceita http em localhost e 127.0.0.1 e hosts com punycode', () => {
+  it('accepts http on localhost and 127.0.0.1 and hosts in punycode', () => {
     for (const origin of ['http://localhost', 'http://localhost:5173', 'http://127.0.0.1:8000', 'https://xn--exmple-cua.com', 'https://[::1]', 'https://10.0.0.1']) {
       assert.equal(otpTokenHeader('1', origin), `"1"; origin="${origin}"`)
     }
   })
 
-  it('recusa um código que o cliente de e-mail não aceitaria', () => {
+  it('refuses a code the mail client would not accept', () => {
     for (const code of ['', '12\n34', '12\t34', '12é34', '12\x7f34']) {
       assert.throws(
         () => otpTokenHeader(code, 'https://example.com'),
-        (error) => error.name === 'validation_error' && error.statusCode === 0 && /código do OTP-Token/.test(error.message),
+        (error) => error.name === 'validation_error' && error.statusCode === 0 && /OTP-Token code/.test(error.message),
         JSON.stringify(code),
       )
     }
@@ -37,7 +37,7 @@ describe('otpTokenHeader', () => {
     assert.throws(() => otpTokenHeader(123456, 'https://example.com'), (error) => error.name === 'validation_error')
   })
 
-  it('recusa origens que não são canônicas ou confiáveis', () => {
+  it('refuses origins that are not canonical or trustworthy', () => {
     const bad = [
       'https://example.com/login',
       'https://example.com/',
@@ -70,20 +70,20 @@ describe('otpTokenHeader', () => {
     for (const origin of bad) {
       assert.throws(
         () => otpTokenHeader('123456', origin),
-        (error) => error.name === 'validation_error' && error.statusCode === 0 && /origem do OTP-Token/.test(error.message),
+        (error) => error.name === 'validation_error' && error.statusCode === 0 && /OTP-Token origin/.test(error.message),
         origin,
       )
     }
   })
 
-  it('sugere a origem canônica quando o endereço tem uma', () => {
+  it('suggests the canonical origin when the address has one', () => {
     assert.throws(() => otpTokenHeader('123456', 'https://Example.com/login?x=1'), /Use "https:\/\/example\.com"\./)
     assert.throws(() => otpTokenHeader('123456', 'https://example.com:443'), /Use "https:\/\/example\.com"\./)
     assert.throws(() => otpTokenHeader('123456', 'http://example.com'), (error) => !/Use "/.test(error.message))
   })
 })
 
-describe('OTP-Token no corpo enviado à API', () => {
+describe('OTP-Token in the body sent to the API', () => {
   const header = otpTokenHeader('123456', 'https://example.com')
   const longHeader = otpTokenHeader('Ab3'.repeat(40), 'https://painel.example.com:8443')
 
@@ -95,7 +95,7 @@ describe('OTP-Token no corpo enviado à API', () => {
 
   const base = { from: 'voce@seudominio.com.br', to: 'fulano@exemplo.com', subject: 'Seu código', html: '<p>Seu código: 123456</p>' }
 
-  it('o cabeçalho segue sem mudar em emails.send', async () => {
+  it('the header goes through unchanged in emails.send', async () => {
     const postal = await client()
 
     await postal.emails.send({ ...base, headers: { 'OTP-Token': header } })
@@ -108,7 +108,7 @@ describe('OTP-Token no corpo enviado à API', () => {
     assert.ok(!server.requests[0].raw.includes('\\u0022'))
   })
 
-  it('o cabeçalho segue sem mudar em emails.batch', async () => {
+  it('the header goes through unchanged in emails.batch', async () => {
     const postal = await client()
 
     await postal.emails.batch([
@@ -122,7 +122,7 @@ describe('OTP-Token no corpo enviado à API', () => {
     )
   })
 
-  it('o cabeçalho segue sem mudar com agendamento e com template', async () => {
+  it('the header goes through unchanged with scheduling and with a template', async () => {
     const postal = await client()
 
     await postal.emails.send({ ...base, headers: { 'OTP-Token': header }, scheduled_at: new Date('2030-10-26T12:00:00Z') })
@@ -134,7 +134,7 @@ describe('OTP-Token no corpo enviado à API', () => {
     assert.deepEqual(server.requests[1].body.template, { id: 'codigo', variables: { CODIGO: '123456' } })
   })
 
-  it('a API recusar o cabeçalho chega como PostalError 422', async () => {
+  it('the API refusing the header arrives as PostalError 422', async () => {
     server = await fakeServer(() => ({ status: 422, body: { statusCode: 422, name: 'validation_error', message: 'The `OTP-Token` header must look like ...' } }))
     const postal = new Postal('ps_test_key', { baseUrl: server.baseUrl, retryDelay: 1 })
 
